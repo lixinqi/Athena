@@ -10,6 +10,8 @@
 #include "cutlass/gemm_coord.h"
 #include "cutlass/layout/matrix.h"
 
+#include "cutlass_patch/batched_matrix_coord.h"
+
 #define CHECK_CUTLASS(status)                                             \
   {                                                                       \
     cutlass::Status error = status;                                       \
@@ -33,11 +35,7 @@
 
 namespace ap {
 
-struct MatrixCoord {
-  size_t i; // batch id
-  size_t j; // row id
-  size_t k; // column id
-};
+using MatrixCoord = cutlass::BatchedMatrixCoord;
 
 struct GemmEpilogueParams {
   int batch_count;

@@ -189,6 +189,9 @@ public:
 
       using ThreadMap = typename OutputTileIterator::ThreadMap;
 
+      typename OutputTileIterator::Mask mask;
+      output_iterator.get_mask(mask);
+
       CUTLASS_PRAGMA_UNROLL
       for (int cluster = 0; cluster < ThreadMap::Iterations::kCluster; ++cluster) {
 
@@ -204,12 +207,14 @@ public:
             int row_offset = thread_start_row + row * ThreadMap::Delta::kRow
                 + group * ThreadMap::Delta::kGroup + cluster * ThreadMap::Delta::kCluster;
 
-            if (row_offset >= extent_row) {
-              continue;
-            }
+            bool row_guard = row_offset < extent_row;
 
             CUTLASS_PRAGMA_UNROLL
             for (int column = 0; column < ThreadMap::Iterations::kColumn; ++column) {
+              bool guard = row_guard && mask.predicates[column];
+              if (!guard) {
+                continue;
+              }
 
               int column_offset = thread_start_column + column * ThreadMap::Delta::kColumn;
               int frag_offset = frag_row_idx * ThreadMap::Iterations::kColumn + column;
@@ -261,6 +266,9 @@ public:
 
       using ThreadMap = typename OutputTileIterator::ThreadMap;
 
+      typename OutputTileIterator::Mask mask;
+      output_iterator.get_mask(mask);
+
       CUTLASS_PRAGMA_UNROLL
       for (int cluster = 0; cluster < ThreadMap::Iterations::kCluster; ++cluster) {
 
@@ -276,12 +284,14 @@ public:
             int row_offset = thread_start_row + row * ThreadMap::Delta::kRow
                 + group * ThreadMap::Delta::kGroup + cluster * ThreadMap::Delta::kCluster;
 
-            if (row_offset >= extent_row) {
-              continue;
-            }
+            bool row_guard = row_offset < extent_row;
 
             CUTLASS_PRAGMA_UNROLL
             for (int column = 0; column < ThreadMap::Iterations::kColumn; ++column) {
+              bool guard = row_guard && mask.predicates[column];
+              if (!guard) {
+                continue;
+              }
 
               int column_offset = thread_start_column + column * ThreadMap::Delta::kColumn;
               int frag_offset = frag_row_idx * ThreadMap::Iterations::kColumn + column;
@@ -304,7 +314,6 @@ public:
     // Load addend source fragment from global memory
     CUTLASS_DEVICE
     void load() {
-      CUTLASS_TRACE_DEVICE("source_iterator");
       source_iterator.load(source_fragment);
       ++source_iterator;
     }
@@ -348,9 +357,7 @@ public:
       shared_load_iterator_(shared_storage.reference(), thread_idx),
       thread_idx(thread_idx),
       warp_idx(warp_idx)
-  {
-    CUTLASS_TRACE_DEVICE("");
-  }
+  { }
 
 
   /// Aggregates the accumulator sets shared by peer blocks in the global workspace,
@@ -576,7 +583,6 @@ public:
       // Store the final result
       //
 
-      CUTLASS_TRACE_DEVICE("destination_iterator");
       destination_iterator.store(output_fragment);
       ++destination_iterator;
     }

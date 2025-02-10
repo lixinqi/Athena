@@ -7,8 +7,7 @@ def make_kernel_arg_translator():
 
 
 def get_anchor_iter_var_names():
-    # return ["coord.j", "coord.k"]
-    return ["i", "j"]
+    return ["coord.batch", "coord.row", "coord.column"]
 
 
 class MatmulBinaryTemplate:
@@ -43,6 +42,7 @@ class MatmulBinaryTemplate:
         input_karg,
         weight_karg,
         output_karg,
+        batch_count_karg,
         m_karg,
         n_karg,
         k_karg,
@@ -50,12 +50,13 @@ class MatmulBinaryTemplate:
         map(
             self._register_name,
             [
-                [input_karg, "input"],
-                [weight_karg, "weight"],
-                [output_karg, "output"],
-                [m_karg, "m"],
-                [n_karg, "n"],
-                [k_karg, "k"],
+                [input_karg,        "input"],
+                [weight_karg,       "weight"],
+                [output_karg,       "output"],
+                [batch_count_karg,  "batch_count"],
+                [m_karg,            "m"],
+                [n_karg,            "n"],
+                [k_karg,            "k"],
             ],
         )
         mut_lir_code_gen_ctx = low_level_ir_code_gen_ctx_util.CudaLikeIrCodeGenCtx()
@@ -65,14 +66,12 @@ class MatmulBinaryTemplate:
         )
         trivial_code_str = mut_lir_code_gen_ctx.get_stmts_joined_str()
         print("matmul_binary_epilogue_code:\n", trivial_code_str)
-        output_dtype = self.dtype2type_name[output_karg.type.data_type]
-        print("output_dtype:", output_dtype)
         project_module = self.make_project(
             trivial_code_str,
-            output_dtype,
             input_karg,
             weight_karg,
             output_karg,
+            batch_count_karg,
             m_karg,
             n_karg,
             k_karg,
@@ -160,10 +159,10 @@ class MatmulBinaryTemplate:
     def make_project(
         self,
         trivial_code_str,
-        output_dtype,
         input_karg,
         weight_karg,
         output_karg,
+        batch_count_karg,
         m_karg,
         n_karg,
         k_karg,
@@ -186,7 +185,7 @@ EPILOGUE_ARGUMENTS_FIELDS
 
   // Note: need to support vectorized operation
   __forceinline__ __host__ __device__
-  T operator()(T x, const Arguments& args, int i, int j) const {
+  T operator()(T x, const Arguments& args, const MatrixCoord& coord) const {
     T out;
     AP_GENERATED_BINARY_EPILOGUE_STRING;
     return out;
@@ -200,7 +199,7 @@ extern "C" {
 void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
   ap::GemmEpilogueParams params;
 
-  params.batch_count = 1;
+  params.batch_count = $batch_count;
   params.m = $m;
   params.n = $n;
   params.k = $k;
@@ -223,6 +222,7 @@ EPILOGUE_ARGUMENTS_INIT
 
   """
 
+        output_dtype = self.dtype2type_name[output_karg.type.data_type]
         code = (
             code_template.replace(
                 "AP_GENERATED_BINARY_EPILOGUE_STRING", trivial_code_str
@@ -239,6 +239,7 @@ EPILOGUE_ARGUMENTS_INIT
             .replace("$input", self.get_kernel_arg_id_var_name(input_karg))
             .replace("$weight", self.get_kernel_arg_id_var_name(weight_karg))
             .replace("$output", self.get_kernel_arg_id_var_name(output_karg))
+            .replace("$batch_count", self.get_kernel_arg_id_var_name(batch_count_karg))
             .replace("$m", self.get_kernel_arg_id_var_name(m_karg))
             .replace("$n", self.get_kernel_arg_id_var_name(n_karg))
             .replace("$k", self.get_kernel_arg_id_var_name(k_karg))

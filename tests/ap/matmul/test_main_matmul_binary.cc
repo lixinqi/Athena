@@ -4,7 +4,7 @@
 #include "test_util.h"
 
 #if USE_AP_GENERATED_KERNEL
-#include "matmul_add_binary_kernel.h"
+#include "matmul_binary_kernel.h"
 #else
 #include "kernel.h"
 #endif
@@ -12,15 +12,15 @@
 
 template <typename T>
 void TestMatmulAddBinary(cudaStream_t stream, bool add_bias) {
-  // int batch_count = 4;
-  // int m = 65536;
-  // int n = 32;
-  // int k = 128;
+  int batch_count = 4;
+  int m = 65536;
+  int n = 32;
+  int k = 128;
 
-  int batch_count = 1;
-  int m = 256;
-  int n = 512;
-  int k = 256;
+  // int batch_count = 1;
+  // int m = 256;
+  // int n = 512;
+  // int k = 256;
 
   bool transpose_b = false;
 

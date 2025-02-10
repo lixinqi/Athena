@@ -405,7 +405,8 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
         input_karg=ctx.in_tensor_data_ptr_kernel_arg_id(t.input0),
         weight_karg=ctx.in_tensor_data_ptr_kernel_arg_id(t.input1),
         output_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.output),
-        m_karg=ctx.dim_expr_kernel_arg_id(t.input0.symbolic_shape_to_list()[0]),
+        batch_count_karg=ctx.dim_expr_kernel_arg_id(t.input0.symbolic_shape_to_list()[0]),
+        m_karg=ctx.dim_expr_kernel_arg_id(t.input0.symbolic_shape_to_list()[1]),
         n_karg=ctx.dim_expr_kernel_arg_id(t.input1.symbolic_shape_to_list()[1]),
-        k_karg=ctx.dim_expr_kernel_arg_id(t.input0.symbolic_shape_to_list()[1]),
+        k_karg=ctx.dim_expr_kernel_arg_id(t.input0.symbolic_shape_to_list()[2]),
     )

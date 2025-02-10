@@ -11,6 +11,8 @@
 #include "cutlass/numeric_conversion.h"
 #include "cutlass/epilogue/thread/scale_type.h"
 
+#include "cutlass_patch/batched_matrix_coord.h"
+#include "cutlass_patch/trace_device.h"
 
 namespace cutlass {
 namespace epilogue {
@@ -169,7 +171,7 @@ public:
       if (!skip_elementwise_) {
         CUTLASS_PRAGMA_UNROLL
         for (int i = 0; i < kElementsPerAccess; ++i) {
-          intermediate[i] = variadic_op(intermediate[i], params_.variadic_args, row_offset, column_offset + i);
+          intermediate[i] = variadic_op(intermediate[i], params_.variadic_args, BatchedMatrixCoord(blockIdx.z, row_offset, column_offset + i));
         }
       }
     } else {
@@ -213,7 +215,7 @@ public:
       if (!skip_elementwise_) {
         CUTLASS_PRAGMA_UNROLL
         for (int i = 0; i < kElementsPerAccess; ++i) {
-          intermediate[i] = variadic_op(intermediate[i], params_.variadic_args, row_offset, column_offset + i);
+          intermediate[i] = variadic_op(intermediate[i], params_.variadic_args, BatchedMatrixCoord(blockIdx.z, row_offset, column_offset + i));
         }
       }
     } else {

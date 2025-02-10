@@ -1,4 +1,5 @@
 #include "epilogue_op.h"
+#include "cutlass_matmul.cuh"
 
 namespace ap {
 
@@ -20,15 +21,13 @@ struct VariadicEpilogueFunctor {
   };
 
   __forceinline__ __host__ __device__
-  T operator()(T x, const Arguments& args, int i, int j) const {
-    T y = args.another[i * args.n + j];
+  T operator()(T x, const Arguments& args, const MatrixCoord& coord) const {
+    T y = args.another[coord.row * args.n + coord.column];
     return x + y;
   }
 };
 
 }
-
-#include "cutlass_matmul.cuh"
 
 extern "C" {
 

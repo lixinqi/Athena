@@ -52,15 +52,15 @@ class TestAPMatmulBinary(unittest.TestCase):
     def prepare_data(self):
         self.dtype = "float32"
 
-        self.x_shape = [256, 256]
+        self.x_shape = [4, 65536, 128]
         self.x = paddle.randn(self.x_shape, dtype=self.dtype)
         self.x.stop_gradient = False
 
-        self.y_shape = [256, 512]
+        self.y_shape = [128, 32]
         self.y = paddle.randn(self.y_shape, dtype=self.dtype)
         self.y.stop_gradient = False
 
-        self.b_shape = [256, 512]
+        self.b_shape = [4, 65536, 32]
         self.b = paddle.randn(self.b_shape, dtype=self.dtype)
         self.b.stop_gradient = False
 
