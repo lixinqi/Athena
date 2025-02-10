@@ -256,7 +256,7 @@
           "lambda",
           [
             "self",
-            "mut_kernel_arg_id_lazy_ctx",
+            "mut_kernel_arg_id_registry",
             "mut_lir_code_gen_ctx"
           ],
           [
@@ -289,7 +289,7 @@
                           [
                             "___22",
                             "op_property",
-                            "mut_kernel_arg_id_lazy_ctx",
+                            "mut_kernel_arg_id_registry",
                             "mut_lir_code_gen_ctx"
                           ]
                         ],
@@ -382,7 +382,7 @@
           [
             "self",
             "op_property",
-            "mut_kernel_arg_id_lazy_ctx",
+            "mut_kernel_arg_id_registry",
             "mut_lir_code_gen_ctx"
           ],
           [
@@ -603,9 +603,9 @@
                 [
                   "__builtin_list__",
                   {
-                    "str": "mut_kernel_arg_id_lazy_ctx"
+                    "str": "mut_kernel_arg_id_registry"
                   },
-                  "mut_kernel_arg_id_lazy_ctx"
+                  "mut_kernel_arg_id_registry"
                 ]
               ],
               [

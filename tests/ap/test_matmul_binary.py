@@ -392,14 +392,14 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
 
   def code_gen(self, ctx, o, t):
     program_translator = self._get_program_translator(ctx, o, t)
-    mut_kernel_arg_id_lazy_ctx = kernel_arg_id_util.KernelArgIdNameLazyContext(
+    mut_kernel_arg_id_registry = kernel_arg_id_util.KernelArgIdNameRegistry(
       code_gen_ctx=ctx,
       tensor_match_ctx=t,
       name_prefix=""
     )
     template_module = matmul_binary_tpl.MatmulBinaryTemplate(
       program_translator=program_translator,
-      mut_kernel_arg_id_lazy_ctx=mut_kernel_arg_id_lazy_ctx,
+      mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
     )
     return template_module.compile(
         input_karg=ctx.in_tensor_data_ptr_kernel_arg_id(t.input0),
