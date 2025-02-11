@@ -13,7 +13,7 @@ class ApOpLoadFromRegisterCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     out = self.get_out_cg_val(0)
     return [out]
 
@@ -39,16 +39,16 @@ class ApOpLoadFromGlobalCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     index_func_unique_id_attr = self.op_property.attributes.index_func_unique_id
     index_func_unique_id = index_func_unique_id_attr.match(a_str=lambda x:x)
     offset_var_name = self.index_program_translator_map.get_offset_var_name(
       index_func_unique_id=index_func_unique_id,
-      mut_kernel_arg_id_lazy_ctx=mut_kernel_arg_id_lazy_ctx,
+      mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
       mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
     )
     data_op_name = inputs[0].var_name
-    arg_name = mut_kernel_arg_id_lazy_ctx.get_in_tensor_data_ptr_var_name(data_op_name)
+    arg_name = mut_kernel_arg_id_registry.get_in_tensor_data_ptr_var_name(data_op_name)
     ptr_var_name = self.kernel_arg_translator.get_use_name(arg_name)
     out = self.get_out_cg_val(0)
     mut_lir_code_gen_ctx.let(out, f"{ptr_var_name}[{offset_var_name}]")
@@ -74,7 +74,7 @@ class ApOpStoreToRegisterCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     mut_lir_code_gen_ctx.stmts.append(f"{self.get_out_var_name()} = {inputs[0].var_name};")
     return []
 
@@ -96,7 +96,7 @@ class PdOpDataCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     out = self.get_out_cg_val(0)
     return [out]
 
@@ -121,9 +121,34 @@ class PdOpExpCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     out = self.get_out_cg_val(0)
     mut_lir_code_gen_ctx.let(out, f"expf({inputs[0].var_name})")
+    return [out]
+
+  def get_out_cg_val(self, i):
+    return code_gen_value_util.CodeGenValue(
+      self.output_properties[i].type,
+      f"op{self.op_property.op_index}_out{i}"
+    )
+
+
+class PdOpReluCodeGen:
+  def __init__(self,
+               op_property,
+               input_properties,
+               output_properties,
+               kernel_arg_translator,
+               index_program_translator_map):
+    self.op_property = op_property
+    self.input_properties = input_properties
+    self.output_properties = output_properties
+    self.kernel_arg_translator = kernel_arg_translator
+    self.index_program_translator_map = index_program_translator_map
+
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
+    out = self.get_out_cg_val(0)
+    mut_lir_code_gen_ctx.let(out, f"({inputs[0].var_name} > 0 ? {inputs[0].var_name} : 0) ")
     return [out]
 
   def get_out_cg_val(self, i):
@@ -146,7 +171,7 @@ class PdOpSubstractCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     a = inputs[0]
     b = inputs[1]
     out = self.get_out_cg_val(0)
@@ -173,7 +198,7 @@ class PdOpAddCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     a = inputs[0]
     b = inputs[1]
     out = self.get_out_cg_val(0)
@@ -200,7 +225,7 @@ class PdOpMultiplyCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     a = inputs[0]
     b = inputs[1]
     out = self.get_out_cg_val(0)
@@ -227,7 +252,7 @@ class CinnOpYieldStoreCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     return inputs
 
 
@@ -244,7 +269,7 @@ class CinnOpBroadcastCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     return inputs
 
 class CinnOpGenerateShapeCodeGen:
@@ -260,7 +285,7 @@ class CinnOpGenerateShapeCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     out = self.get_out_cg_val(0)
     return [out]
 
@@ -279,6 +304,7 @@ class OpComputeTranslatorFactory:
       ["ap_op.load_from_global",    ApOpLoadFromGlobalCodeGen],
       ["pd_op.data",                PdOpDataCodeGen],
       ["pd_op.exp",                 PdOpExpCodeGen],
+      ["pd_op.relu",                PdOpReluCodeGen],
       ["pd_op.subtract",            PdOpSubstractCodeGen],
       ["pd_op.add",                 PdOpAddCodeGen],
       ["pd_op.multiply",            PdOpMultiplyCodeGen],

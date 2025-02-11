@@ -14,10 +14,10 @@ class MatmulBinaryTemplate:
     def __init__(
         self,
         program_translator,
-        mut_kernel_arg_id_lazy_ctx,
+        mut_kernel_arg_id_registry,
     ):
         self.program_translator = program_translator
-        self.mut_kernel_arg_id_lazy_ctx = mut_kernel_arg_id_lazy_ctx
+        self.mut_kernel_arg_id_registry = mut_kernel_arg_id_registry
         self.kernel_arg_translator = make_kernel_arg_translator()
         self.dtype2type_name = OrderedDict(
             [
@@ -32,7 +32,7 @@ class MatmulBinaryTemplate:
         )
 
     def _register_name(self, pair):
-        registry = self.mut_kernel_arg_id_lazy_ctx
+        registry = self.mut_kernel_arg_id_registry
         registry.get_or_create_kernel_arg_id_manul_var_name(
             kernel_arg_id=pair[0], cpp_var_name=pair[1]
         )
@@ -57,8 +57,8 @@ class MatmulBinaryTemplate:
         )
         mut_lir_code_gen_ctx = low_level_ir_code_gen_ctx_util.CudaLikeIrCodeGenCtx()
         self.program_translator.translate(
-            mut_kernel_arg_id_lazy_ctx=self.mut_kernel_arg_id_lazy_ctx,
-            mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
+            mut_kernel_arg_id_registry=self.mut_kernel_arg_id_registry,
+            mut_lir_code_gen_ctx=mut_lir_code_gen_ctx
         )
         trivial_code_str = mut_lir_code_gen_ctx.get_stmts_joined_str()
         print("matmul_binary_epilogue_code:\n", trivial_code_str)
@@ -80,7 +80,7 @@ class MatmulBinaryTemplate:
 
     def get_kernel_arg_runtime_getters(self):
         all_kernel_arg_id_and_unique_names = (
-            self.mut_kernel_arg_id_lazy_ctx.all_kernel_arg_id2unique_name.items()
+            self.mut_kernel_arg_id_registry.all_kernel_arg_id2unique_name.items()
         )
         return map(
             lambda pair: pair[0].runtime_getter, all_kernel_arg_id_and_unique_names
@@ -88,13 +88,13 @@ class MatmulBinaryTemplate:
 
     def get_kernel_arg_types(self):
         all_kernel_arg_id_and_unique_names = (
-            self.mut_kernel_arg_id_lazy_ctx.all_kernel_arg_id2unique_name.items()
+            self.mut_kernel_arg_id_registry.all_kernel_arg_id2unique_name.items()
         )
         return map(lambda pair: pair[0].type, all_kernel_arg_id_and_unique_names)
 
     def get_kernel_arg_id_var_name(self, kernel_arg_id):
         all_kernel_arg_id2unique_name = (
-            self.mut_kernel_arg_id_lazy_ctx.all_kernel_arg_id2unique_name
+            self.mut_kernel_arg_id_registry.all_kernel_arg_id2unique_name
         )
         return all_kernel_arg_id2unique_name[kernel_arg_id]
 
@@ -110,7 +110,7 @@ class MatmulBinaryTemplate:
             return f"{type_name} {field_name}"
 
         all_kernel_arg_id_and_names = (
-            self.mut_kernel_arg_id_lazy_ctx.all_kernel_arg_id2unique_name.items()
+            self.mut_kernel_arg_id_registry.all_kernel_arg_id2unique_name.items()
         )
         return ", ".join(
             map(declare_epilogue_arguments_field, all_kernel_arg_id_and_names)
@@ -128,7 +128,7 @@ class MatmulBinaryTemplate:
             return f"    {type_name} {field_name};"
 
         generated_kernel_arg_id_and_names = (
-            self.mut_kernel_arg_id_lazy_ctx.generated_kernel_arg_id2unique_name.items()
+            self.mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
         )
         return "\n".join(
             map(declare_epilogue_arguments_field, generated_kernel_arg_id_and_names)
@@ -144,7 +144,7 @@ class MatmulBinaryTemplate:
             return f"  {param_obj_name}.{field_name} = {var_name};"
 
         generated_kernel_arg_id_and_names = (
-            self.mut_kernel_arg_id_lazy_ctx.generated_kernel_arg_id2unique_name.items()
+            self.mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
         )
         return "\n".join(
             map(declare_epilogue_arguments_assign, generated_kernel_arg_id_and_names)

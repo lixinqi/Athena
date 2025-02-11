@@ -1387,14 +1387,14 @@
       [
         "type",
         {
-          "str": "KernelArgIdNameLazyContext"
+          "str": "KernelArgIdNameRegistry"
         },
         "___0",
         "___118"
       ]
     ],
     [
-      "KernelArgIdNameLazyContext",
+      "KernelArgIdNameRegistry",
       [
         "__builtin_identity__",
         "___119"

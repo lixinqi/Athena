@@ -23,12 +23,12 @@ class IndexProgramTranslatorMap:
   def get_offset_var_name(
     self,
     index_func_unique_id,
-    mut_kernel_arg_id_lazy_ctx,
+    mut_kernel_arg_id_registry,
     mut_lir_code_gen_ctx
   ):
     translator = self.index_func_unique_id2translator[index_func_unique_id]
     ret = translator.translate(
-      mut_kernel_arg_id_lazy_ctx=mut_kernel_arg_id_lazy_ctx,
+      mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
       mut_lir_code_gen_ctx=mut_lir_code_gen_ctx
     )
     return ret.iter_var_names[0]
@@ -70,15 +70,15 @@ class IndexProgramTranslator:
 
   def translate(
     self,
-    mut_kernel_arg_id_lazy_ctx,
+    mut_kernel_arg_id_registry,
     mut_lir_code_gen_ctx,
   ):
     def TranslateOp(op_property):
-      self._translate_op(op_property, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx)
+      self._translate_op(op_property, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx)
     map(TranslateOp, self.program_property.ops)
     return self.ir_value_index2translated_value[-1]
 
-  def _translate_op(self, op_property, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def _translate_op(self, op_property, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     index_op_translator = self.index_op_translator_maker(
       index_program_id=self.program_id,
       op_property=op_property,
@@ -90,7 +90,7 @@ class IndexProgramTranslator:
     inputs = map(self._get_translated_value, op_property.input_value_indexes)
     outputs = index_op_translator(
       inputs,
-      mut_kernel_arg_id_lazy_ctx=mut_kernel_arg_id_lazy_ctx,
+      mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
       mut_lir_code_gen_ctx=mut_lir_code_gen_ctx
     )
     map(self._set_translated_value, zip(op_property.output_value_indexes, outputs))

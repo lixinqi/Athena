@@ -15,7 +15,7 @@ class PdOpDataCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.anchor_iter_var_names = anchor_iter_var_names
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     return [index_code_gen_value_util.IndexCodeGenValue(self.anchor_iter_var_names)]
 
 
@@ -34,7 +34,7 @@ class PdOpFullIntArrayCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.anchor_iter_var_names = anchor_iter_var_names
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     out = index_code_gen_value_util.IndexCodeGenValue(None)
     def get_int64(attr):
       return attr.match(a_i64=lambda x:x)
@@ -60,7 +60,7 @@ class PdOpSumCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.anchor_iter_var_names = anchor_iter_var_names
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     input_iter_var_names = inputs[0].iter_var_names
     reduced_axes_set = OrderedDict(
       map(lambda x: [int(x), True], inputs[1].const_data)
@@ -91,10 +91,10 @@ class CinnOpReshapeCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.anchor_iter_var_names = anchor_iter_var_names
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     symbolic_shape = self.input_properties[0].symbolic_shape
     def get_or_create_dim_var_name(dim_expr):
-      arg_var_name = mut_kernel_arg_id_lazy_ctx.get_dim_expr_var_name(dim_expr)
+      arg_var_name = mut_kernel_arg_id_registry.get_dim_expr_var_name(dim_expr)
       return self.kernel_arg_translator.get_use_name(arg_var_name)
     def get_dim_var_name(i):
       dim_expr = symbolic_shape[i]
@@ -114,7 +114,7 @@ class CinnOpReshapeCodeGen:
         var_name_and_dims_list
       )
     )
-    # assert len(self.output_properties[0]) == 1
+    assert len(self.output_properties[0].symbolic_shape) == 1, "len(self.output_properties[0]) should be 1"
     return [index_code_gen_value_util.IndexCodeGenValue([f"({offset_expr})"])]
 
 
@@ -133,7 +133,7 @@ class CfYieldCodeGen:
     self.kernel_arg_translator = kernel_arg_translator
     self.anchor_iter_var_names = anchor_iter_var_names
 
-  def __call__(self, inputs, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     return []
 
 

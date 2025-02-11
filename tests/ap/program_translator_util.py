@@ -16,14 +16,14 @@ class ProgramTranslator:
       self.ir_value_index2translated_value.append(None)
     map(PushNone, self.program_property.values)
 
-  # mut_kernel_arg_id_lazy_ctx: mutable KernelArgIdLazyContext
+  # mut_kernel_arg_id_registry: mutable KernelArgIdLazyContext
   # mut_lir_code_gen_ctx: mutable low level ir code generation context
-  def translate(self, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def translate(self, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     def TranslateOp(op_property):
-      self._translate_op(op_property, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx)
+      self._translate_op(op_property, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx)
     map(TranslateOp, self.program_property.ops)
 
-  def _translate_op(self, op_property, mut_kernel_arg_id_lazy_ctx, mut_lir_code_gen_ctx):
+  def _translate_op(self, op_property, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     op_translator = self.op_translator_maker(
       op_property=op_property,
       input_properties=map(self._get_value_property, op_property.input_value_indexes),
@@ -34,7 +34,7 @@ class ProgramTranslator:
     inputs = map(self._get_translated_value, op_property.input_value_indexes)
     outputs = op_translator(
       inputs,
-      mut_kernel_arg_id_lazy_ctx=mut_kernel_arg_id_lazy_ctx,
+      mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
       mut_lir_code_gen_ctx=mut_lir_code_gen_ctx
     )
     map(self._set_translated_value, zip(op_property.output_value_indexes, outputs))

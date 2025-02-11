@@ -241,6 +241,68 @@ class PyToAnfParser:
         ]
         return AtomicAnfExpr(['lambda', args, parse_result.ConvertToAnfExpr().value])
 
+    def ParseIfExp(self, if_expr: ast.IfExp):
+        test_value = self.Parse(if_expr.test)
+        true_value = self.ParseExprTo0ArgLambda(if_expr.body)
+        false_value = self.ParseExprTo0ArgLambda(if_expr.orelse)
+        ret = self.BindToTmpVar(['__builtin_if__', test_value.value, true_value.value, false_value.value])
+        return ret
+
+    def ParseBoolOp(self, bool_op: ast.BoolOp):
+        name = type(bool_op.op).__name__
+        method = f"Parse{name}"
+        return getattr(self, method)(bool_op)
+
+    def ParseOr(self, bool_op: ast.BoolOp):
+        assert len(bool_op.values) == 2
+        test_value = self.Parse(bool_op.values[0])
+        true_value = AtomicAnfExpr(['lambda', [], AtomicAnfExpr(True).value])
+        false_value = self.ParseExprTo0ArgLambda(bool_op.values[1])
+        ret = self.BindToTmpVar(['__builtin_if__', test_value.value, true_value.value, false_value.value])
+        return ret
+
+    def ParseAnd(self, bool_op: ast.BoolOp):
+        assert len(bool_op.values) == 2
+        test_value = self.Parse(bool_op.values[0])
+        true_value = self.ParseExprTo0ArgLambda(bool_op.values[1])
+        false_value = AtomicAnfExpr(['lambda', [], AtomicAnfExpr(False).value])
+        ret = self.BindToTmpVar(['__builtin_if__', test_value.value, true_value.value, false_value.value])
+        return ret
+
+    def ParseNot(self, unary_op: ast.UnaryOp):
+        return AtomicAnfExpr('__builtin_not__')
+
+    def ParseExprTo0ArgLambda(self, expr):
+        return_count_constraint = ReturnCounterConstraint(limits=0)
+        parser = PyToAnfParser(self.seq_no_counter, return_count_constraint)
+        parse_result = parser(expr)
+        return AtomicAnfExpr(['lambda', [], parse_result.ConvertToAnfExpr().value])
+
+    def ParseAssert(self, expr: ast.Assert):
+        test_value = self.Parse(expr.test)
+        true_value = AtomicAnfExpr(['lambda', [], AtomicAnfExpr(None).value])
+        # handle lambda: rase(msg)
+        return_count_constraint = ReturnCounterConstraint(limits=0)
+        parser = PyToAnfParser(self.seq_no_counter, return_count_constraint)
+        if expr.msg is None:
+            msg = parser.BindToTmpVar(AtomicAnfExpr(dict(str="")))
+        else:
+            msg = parser.Parse(expr.msg)
+        exception = parser.BindToTmpVar(['AssertionError', msg.value])
+        raise_ret = parser.BindToTmpVar(['raise', exception.value])
+        false_value = AtomicAnfExpr([
+            'lambda',
+            [],
+            AnfParseResult(
+                bindings=parser.bindings,
+                body_atomic_anf_expr=raise_ret
+            ).ConvertToAnfExpr().value
+        ])
+        ret = self.BindToTmpVar(
+            ['__builtin_if__', test_value.value, true_value.value, false_value.value]
+        )
+        return ret
+
     def ParseAssign(self, tree):
         assert len(tree.targets) == 1
         if isinstance(tree.targets[0], ast.Name):
