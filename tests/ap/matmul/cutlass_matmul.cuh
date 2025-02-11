@@ -87,7 +87,6 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
-  GemmShapeArguments<TransposeA, TransposeB> gemm_shape_args(problem_size, params.is_B_weight, params.is_C_bias);
 
   const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
   const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
@@ -106,14 +105,14 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
       weight,                               // <- input, ptr_B
       bias,                                 // <- input, ptr_C or bias
       output,                               // <- output, ptr_D
-      gemm_shape_args.batch_stride_A,
-      gemm_shape_args.batch_stride_B,
-      gemm_shape_args.batch_stride_C,
-      gemm_shape_args.batch_stride_D,
-      gemm_shape_args.lda,
-      gemm_shape_args.ldb,
-      gemm_shape_args.ldc_bias,
-      gemm_shape_args.ldd
+      params.shape_args.batch_stride_A,
+      params.shape_args.batch_stride_B,
+      params.shape_args.batch_stride_C,
+      params.shape_args.batch_stride_D,
+      params.shape_args.lda,
+      params.shape_args.ldb,
+      params.shape_args.ldc_bias,
+      params.shape_args.ldd
   };
 
   size_t workspace_size = GemmFunc::get_workspace_size(arguments);
@@ -183,7 +182,6 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
-  GemmShapeArguments<TransposeA, TransposeB> gemm_shape_args(problem_size, params.is_B_weight, params.is_C_bias);
 
   const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
   const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
@@ -202,14 +200,14 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       weight,                               // <- input, ptr_B
       bias,                                 // <- input, ptr_C or bias
       output,                               // <- output, ptr_D
-      gemm_shape_args.batch_stride_A,
-      gemm_shape_args.batch_stride_B,
-      gemm_shape_args.batch_stride_C,
-      gemm_shape_args.batch_stride_D,
-      gemm_shape_args.lda,
-      gemm_shape_args.ldb,
-      gemm_shape_args.ldc_bias,
-      gemm_shape_args.ldd
+      params.shape_args.batch_stride_A,
+      params.shape_args.batch_stride_B,
+      params.shape_args.batch_stride_C,
+      params.shape_args.batch_stride_D,
+      params.shape_args.lda,
+      params.shape_args.ldb,
+      params.shape_args.ldc_bias,
+      params.shape_args.ldd
   };
 
   size_t workspace_size = GemmFunc::get_workspace_size(arguments);
@@ -288,7 +286,6 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
-  GemmShapeArguments<false, false> gemm_shape_args(problem_size, params.is_B_weight, params.is_C_bias);
 
   const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
   const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
@@ -314,16 +311,16 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
       output,                               // <- output, ptr_D, Z, shape={M, N}
       broadcast,                            // <- input, ptr_Vector, Broadcast, shape={M, 1}
       broadcast_out,                        // <- output, ptr_Tensor, T
-      gemm_shape_args.batch_stride_A,
-      gemm_shape_args.batch_stride_B,
-      gemm_shape_args.batch_stride_C,
-      gemm_shape_args.batch_stride_D,
+      params.shape_args.batch_stride_A,
+      params.shape_args.batch_stride_B,
+      params.shape_args.batch_stride_C,
+      params.shape_args.batch_stride_D,
       batch_stride_Broadcast,               // <- batch_stride_Vector, need broadcast
       problem_size.m() * problem_size.n(),  // <- batch_stride_Tensor
-      gemm_shape_args.lda,
-      gemm_shape_args.ldb,
-      gemm_shape_args.ldc_bias,
-      gemm_shape_args.ldd,
+      params.shape_args.lda,
+      params.shape_args.ldb,
+      params.shape_args.ldc_bias,
+      params.shape_args.ldd,
       ldr_broadcast,                        // <- ldr, must be zero
       problem_size.n()                      // <- ldt
   };
@@ -385,7 +382,6 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
-  GemmShapeArguments<false, false> gemm_shape_args(problem_size, params.is_B_weight, params.is_C_bias);
 
   const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
   const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
@@ -404,14 +400,14 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
       weight,                               // <- input, ptr_B, B, shape={K, N}
       bias,                                 // <- input, ptr_C, shape={M, N} or {1, N}
       output,                               // <- output, ptr_D, Z, shape={M, N}
-      gemm_shape_args.batch_stride_A,
-      gemm_shape_args.batch_stride_B,
-      gemm_shape_args.batch_stride_C,
-      gemm_shape_args.batch_stride_D,
-      gemm_shape_args.lda,
-      gemm_shape_args.ldb,
-      gemm_shape_args.ldc_bias,
-      gemm_shape_args.ldd
+      params.shape_args.batch_stride_A,
+      params.shape_args.batch_stride_B,
+      params.shape_args.batch_stride_C,
+      params.shape_args.batch_stride_D,
+      params.shape_args.lda,
+      params.shape_args.ldb,
+      params.shape_args.ldc_bias,
+      params.shape_args.ldd
   };
 
   size_t workspace_size = GemmFunc::get_workspace_size(arguments);

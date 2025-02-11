@@ -1,12 +1,10 @@
 #include <iostream>
 
+#include "kernel.h"
 #include "profile.h"
 #include "test_util.h"
-#include "kernel.h"
 
-
-template <typename T>
-void TestMatmulAdd(cudaStream_t stream, bool add_bias) {
+template <typename T> void TestMatmulAdd(cudaStream_t stream, bool add_bias) {
   int batch_count = 1;
   int m = 256;
   int n = 512;
@@ -14,10 +12,13 @@ void TestMatmulAdd(cudaStream_t stream, bool add_bias) {
 
   bool transpose_b = false;
 
-  T* input = AllocateAndInit<T>(stream, batch_count * m * k, false, 1.);
-  T* weight = AllocateAndInit<T>(stream, k * n, false, 1.);
+  std::vector<int64_t> input_shape{batch_count, m, k};
+  std::vector<int64_t> weight_shape{k, n};
 
-  T* bias = nullptr;
+  T *input = AllocateAndInit<T>(stream, batch_count * m * k, false, 1.);
+  T *weight = AllocateAndInit<T>(stream, k * n, false, 1.);
+
+  T *bias = nullptr;
   if (add_bias) {
     std::vector<float> bias_ref;
     bias_ref.resize(n);
@@ -27,14 +28,17 @@ void TestMatmulAdd(cudaStream_t stream, bool add_bias) {
     bias = AllocateAndInit<T>(stream, n, false, 0., bias_ref);
   }
 
-  T* output = AllocateAndInit<T>(stream, batch_count * m * n, false, 0.);
+  T *output = AllocateAndInit<T>(stream, batch_count * m * n, false, 0.);
   CHECK_CUDA(cudaStreamSynchronize(stream));
 
-  CHECK_CUDA(cudaMemsetAsync(output, 0, sizeof(T) * batch_count * m * n, stream));
-  // KERNEL_PROFILE(MatmulAddKernel(&stream, input, weight, bias, output, batch_count, m, n, k, transpose_b));
-  KERNEL_PROFILE(NativeMatmulAddKernel(&stream, input, weight, bias, output, batch_count, m, n, k, transpose_b));
+  CHECK_CUDA(
+      cudaMemsetAsync(output, 0, sizeof(T) * batch_count * m * n, stream));
+  // KERNEL_PROFILE(ap::MatmulAddKernel(&stream, input, weight, bias, output,
+  // input_shape, weight_shape, transpose_b));
+  KERNEL_PROFILE(NativeMatmulAddKernel(&stream, input, weight, bias, output,
+                                       batch_count, m, n, k, transpose_b));
 
-  Print<T>(stream, reinterpret_cast<T*>(output), batch_count, m, n);
+  Print<T>(stream, reinterpret_cast<T *>(output), batch_count, m, n);
 
   cudaFree(input);
   cudaFree(weight);

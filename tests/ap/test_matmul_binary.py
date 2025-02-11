@@ -401,12 +401,14 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
       program_translator=program_translator,
       mut_kernel_arg_id_lazy_ctx=mut_kernel_arg_id_lazy_ctx,
     )
+    def get_symbolic_shape_args_list(sym_dim):
+        return ctx.dim_expr_kernel_arg_id(sym_dim)
+    input0_shape_kargs = map(get_symbolic_shape_args_list, t.input0.symbolic_shape_to_list())
+    input1_shape_kargs = map(get_symbolic_shape_args_list, t.input1.symbolic_shape_to_list())
     return template_module.compile(
-        input_karg=ctx.in_tensor_data_ptr_kernel_arg_id(t.input0),
-        weight_karg=ctx.in_tensor_data_ptr_kernel_arg_id(t.input1),
+        input0_karg=ctx.in_tensor_data_ptr_kernel_arg_id(t.input0),
+        input1_karg=ctx.in_tensor_data_ptr_kernel_arg_id(t.input1),
         output_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.output),
-        batch_count_karg=ctx.dim_expr_kernel_arg_id(t.input0.symbolic_shape_to_list()[0]),
-        m_karg=ctx.dim_expr_kernel_arg_id(t.input0.symbolic_shape_to_list()[1]),
-        n_karg=ctx.dim_expr_kernel_arg_id(t.input1.symbolic_shape_to_list()[1]),
-        k_karg=ctx.dim_expr_kernel_arg_id(t.input0.symbolic_shape_to_list()[2]),
+        input0_shape_kargs=input0_shape_kargs,
+        input1_shape_kargs=input1_shape_kargs,
     )
