@@ -1,4 +1,4 @@
-# Copyright (c) 2023 PaddlePaddle Authors. All Rights Reserved.
+# Copyright (c) 2025 PaddlePaddle Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ class TestAPMatmulBinary(unittest.TestCase):
         self.prepare_data()
 
     def prepare_data(self):
-        self.dtype = "float32"
+        self.dtype = "float16"
 
         self.x_shape = [4, 65536, 128]
         self.x = paddle.randn(self.x_shape, dtype=self.dtype)
@@ -60,7 +60,7 @@ class TestAPMatmulBinary(unittest.TestCase):
         self.y = paddle.randn(self.y_shape, dtype=self.dtype)
         self.y.stop_gradient = False
 
-        self.b_shape = [4, 65536, 32]
+        self.b_shape = [32]
         self.b = paddle.randn(self.b_shape, dtype=self.dtype)
         self.b.stop_gradient = False
 
@@ -73,8 +73,7 @@ class TestAPMatmulBinary(unittest.TestCase):
         ]
         net = utils.apply_to_static(net, use_cinn, input_spec)
         net.eval()
-        with utils.profile_context(profile):
-            out = net(self.x, self.y, self.b)
+        out = utils.run_with_profile(profile, net, self.x, self.y, self.b)
         return out
 
     def test_eval_symbolic(self):

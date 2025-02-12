@@ -31,7 +31,6 @@ struct GemmOperation<float> {
   using Type = cutlass::arch::OpMultiplyAddFastF32;
 };
 
-
 cutlass::gemm::GemmUniversalMode GetGemmMode(int batch_count) {
   return batch_count > 1 ? cutlass::gemm::GemmUniversalMode::kBatched : cutlass::gemm::GemmUniversalMode::kGemm;
 }
@@ -48,7 +47,7 @@ template <typename ElementT,
           typename ElementComputeT,
           bool TransposeA = false,
           bool TransposeB = false>
-void CutlassMatmulAdd(const GemmEpilogueParams& params) {
+void CutlassMatmul(const GemmEpilogueParams& params) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
   using ElementInputA = typename CutlassDataType<ElementT>::Type; // <- data type of elements in input matrix A
@@ -62,7 +61,7 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
       128 / cutlass::sizeof_bits<ElementOutput>::value,
       ElementAccumulator,
       ElementComputeEpilogue,
-      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x C + bias
+      cutlass::epilogue::thread::ScaleType::OnlyAlphaScaling>;  // <- alpha x AB, no bias
 
   using GemmFunc = cutlass::gemm::device::GemmUniversal<
       ElementInputA,
@@ -90,11 +89,10 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
 
   const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
   const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
-  const ElementOutput *bias = reinterpret_cast<const ElementOutput *>(params.bias);
   ElementOutput *output = reinterpret_cast<ElementOutput *>(params.output);
 
   ElementComputeEpilogue alpha = static_cast<ElementComputeEpilogue>(1);
-  ElementComputeEpilogue beta = bias ? static_cast<ElementComputeEpilogue>(1) : static_cast<ElementComputeEpilogue>(0);
+  ElementComputeEpilogue beta = static_cast<ElementComputeEpilogue>(0);
 
   typename GemmFunc::Arguments arguments{
       GetGemmMode(params.batch_count),
@@ -103,7 +101,7 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
       {alpha, beta},                        // <- epilogue params, alpha, beta
       input,                                // <- input, ptr_A
       weight,                               // <- input, ptr_B
-      bias,                                 // <- input, ptr_C or bias
+      nullptr,                              // <- input, ptr_C or bias
       output,                               // <- output, ptr_D
       params.shape_args.batch_stride_A,
       params.shape_args.batch_stride_B,
@@ -157,7 +155,7 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       128 / cutlass::sizeof_bits<ElementOutput>::value,
       ElementAccumulator,
       ElementComputeEpilogue,
-      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x C + bias
+      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x AB + bias
 
   using GemmFunc = cutlass::gemm::device::GemmUniversal<
       ElementInputA,
@@ -244,8 +242,7 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
     ElementComputeEpilogue,
     ElementOutputZ,
     ElementOutputT,
-    128 / cutlass::sizeof_bits<ElementOutputC>::value,
-    ap::IdentityFunctor<ElementComputeEpilogue>
+    128 / cutlass::sizeof_bits<ElementOutputC>::value
   >;
 
   // Epilogue operation as LinearCombinationResidualBlock:
@@ -357,7 +354,7 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
       128 / cutlass::sizeof_bits<ElementOutput>::value,
       ElementAccumulator,
       ElementComputeEpilogue,
-      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x C + bias
+      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x AB + bias
 
   using GemmFunc = cutlass::gemm::device::GemmUniversalWithVariadic<
       ElementInputA,

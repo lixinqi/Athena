@@ -10,17 +10,8 @@
 #endif
 
 template <typename T>
-void TestMatmulAddBinary(cudaStream_t stream, bool add_bias) {
-  int batch_count = 4;
-  int m = 65536;
-  int n = 32;
-  int k = 128;
-
-  // int batch_count = 1;
-  // int m = 256;
-  // int n = 512;
-  // int k = 256;
-
+void TestMatmulAddBinary(cudaStream_t stream, int batch_count, int m, int n,
+                         int k, bool add_bias) {
   bool transpose_b = false;
 
   std::vector<int64_t> input_shape{batch_count, m, k};
@@ -41,7 +32,7 @@ void TestMatmulAddBinary(cudaStream_t stream, bool add_bias) {
 
   std::vector<float> another_ref;
   another_ref.resize(batch_count * m * n);
-  for (size_t i = 0; i < m; ++i) {
+  for (size_t i = 0; i < batch_count * m; ++i) {
     for (size_t j = 0; j < n; ++j) {
       another_ref[i * n + j] = static_cast<float>(10000 * (i % 5));
     }
@@ -74,16 +65,20 @@ void TestMatmulAddBinary(cudaStream_t stream, bool add_bias) {
   cudaFree(output);
 }
 
-int main(int argc, const char *arg[]) {
+int main(int argc, const char *argv[]) {
+  ProblemSizeArgs args = ParseArgs(argc, argv);
+
   cudaStream_t stream;
   CHECK_CUDA(cudaStreamCreate(&stream));
 
-  bool add_bias = true;
+  bool add_bias = false;
 
 #if USE_FLOAT16
-  TestMatmulAddBinary<half>(stream, add_bias);
+  TestMatmulAddBinary<half>(stream, args.batch_count, args.m, args.n, args.k,
+                            add_bias);
 #else
-  TestMatmulAddBinary<float>(stream, add_bias);
+  TestMatmulAddBinary<float>(stream, args.batch_count, args.m, args.n, args.k,
+                             add_bias);
 #endif
 
   CHECK_CUDA(cudaStreamDestroy(stream));

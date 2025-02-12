@@ -4,36 +4,14 @@
 
 namespace ap {
 
-template <typename T> struct UnaryEpilogueFunctor {
-  using Arguments = typename ScaleFunctor<T>::Arguments;
-
-  __forceinline__ __host__ __device__ T operator()(T x, Arguments args) const {
-    return ScaleFunctor<T>()(x, args);
-  }
-};
-
-template <typename T> struct VariadicEpilogueFunctor {
-  struct Arguments {
-    int n;
-    const T *another{nullptr};
-  };
-
-  __forceinline__ __host__ __device__ T
-  operator()(T x, const Arguments &args, const MatrixCoord &coord) const {
-    T y = args.another[coord.row * args.n + coord.column];
-    return x + y;
-  }
-};
-
-void MatmulAddKernel(cudaStream_t *stream, const void *input,
-                     const void *weight, const void *bias, void *output,
-                     std::vector<int64_t> &input_shape,
-                     std::vector<int64_t> &weight_shape, bool transpose_b) {
-  ap::GemmEpilogueParams params(*stream, input, weight, bias, output,
+void MatmulKernel(cudaStream_t *stream, const void *input, const void *weight,
+                  void *output, const std::vector<int64_t> &input_shape,
+                  const std::vector<int64_t> &weight_shape, bool transpose_b) {
+  ap::GemmEpilogueParams params(*stream, input, weight, nullptr, output,
                                 input_shape, weight_shape);
 
 #if USE_FLOAT16
-  using ElementT = cutlass::half_t;
+  using ElementT = half;
   using ElementComputeT = float;
 #else
   using ElementT = float;
@@ -41,11 +19,15 @@ void MatmulAddKernel(cudaStream_t *stream, const void *input,
 #endif
 
   if (transpose_b) {
-    ap::CutlassMatmulAdd<ElementT, ElementComputeT, false, true>(params);
+    ap::CutlassMatmul<ElementT, ElementComputeT, false, true>(params);
   } else {
-    ap::CutlassMatmulAdd<ElementT, ElementComputeT, false, false>(params);
+    ap::CutlassMatmul<ElementT, ElementComputeT, false, false>(params);
   }
 }
+
+template <typename T>
+// using UnaryEpilogueFunctor = ScaleFunctor<T>;
+using UnaryEpilogueFunctor = IdentityFunctor<T>;
 
 void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
                           const void *weight, const void *bias, void *output,
@@ -56,22 +38,22 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
                                 input_shape, weight_shape, false, transpose_b);
 
 #if USE_FLOAT16
-  using ElementT = cutlass::half_t;
+  using ElementT = half;
   using ElementComputeT = float;
 #else
   using ElementT = float;
   using ElementComputeT = float;
 #endif
 
-  typename ap::UnaryEpilogueFunctor<ElementComputeT>::Arguments unary_args{0.1};
+  // typename UnaryEpilogueFunctor<ElementComputeT>::Arguments unary_args{0.1};
+  typename UnaryEpilogueFunctor<ElementComputeT>::Arguments unary_args;
+
   if (transpose_b) {
-    ap::CutlassMatmulAddUnary<ElementT, ElementComputeT,
-                              ap::UnaryEpilogueFunctor, false, true>(
-        params, unary_args);
+    ap::CutlassMatmulAddUnary<ElementT, ElementComputeT, UnaryEpilogueFunctor,
+                              false, true>(params, unary_args);
   } else {
-    ap::CutlassMatmulAddUnary<ElementT, ElementComputeT,
-                              ap::UnaryEpilogueFunctor, false, false>(
-        params, unary_args);
+    ap::CutlassMatmulAddUnary<ElementT, ElementComputeT, UnaryEpilogueFunctor,
+                              false, false>(params, unary_args);
   }
 }
 
@@ -86,7 +68,7 @@ void MatmulAddBroadcastKernel(cudaStream_t *stream, const void *input,
       *stream, input, weight, bias, broadcast, broadcast_out, output,
       input_shape, weight_shape, need_broadcast);
 
-  ap::CutlassMatmulAddBroadcast<cutlass::half_t, float>(params);
+  ap::CutlassMatmulAddBroadcast<half, float>(params);
 }
 
 void MatmulAddBinaryKernel(cudaStream_t *stream, const void *input,
@@ -98,7 +80,7 @@ void MatmulAddBinaryKernel(cudaStream_t *stream, const void *input,
                                 input_shape, weight_shape);
 
 #if USE_FLOAT16
-  using ElementT = cutlass::half_t;
+  using ElementT = half;
   using ElementComputeT = float;
 #else
   using ElementT = float;
@@ -107,8 +89,10 @@ void MatmulAddBinaryKernel(cudaStream_t *stream, const void *input,
 
   typename ap::VariadicEpilogueFunctor<ElementComputeT>::Arguments
       variadic_args;
-  variadic_args.n = params.n;
-  variadic_args.another = reinterpret_cast<const ElementComputeT *>(another);
+  variadic_args.in0_shape[0] = params.batch_count;
+  variadic_args.in0_shape[1] = params.m;
+  variadic_args.in0_shape[2] = params.n;
+  variadic_args.in0_ptr = reinterpret_cast<const ElementT *>(another);
 
   ap::CutlassMatmulAddVariadic<ElementT, ElementComputeT,
                                ap::VariadicEpilogueFunctor>(params,

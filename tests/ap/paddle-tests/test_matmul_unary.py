@@ -19,7 +19,6 @@ sys.path.append(dirname(__file__))
 
 import unittest
 
-import numpy as np
 import utils
 
 import paddle
@@ -70,8 +69,7 @@ class TestAPMatmulUnary(unittest.TestCase):
         ]
         net = utils.apply_to_static(net, use_cinn, input_spec)
         net.eval()
-        with utils.profile_context(profile):
-            out = net(self.x, self.y)
+        out = utils.run_with_profile(profile, net, self.x, self.y)
         return out
 
     def test_eval_symbolic(self):

@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import os
-import contextlib
 from collections import defaultdict
 
 import numpy as np
@@ -25,20 +24,20 @@ __IF_OP_NAME = "pd_op.if"
 __WHILE_OP_NAME = "pd_op.while"
 
 
-@contextlib.contextmanager
-def profile_context(enabled):
+def run_with_profile(enabled, func, *args):
     if enabled:
         # warmup
         for i in range(10):
-            yield
+            out = func(*args)
 
         # repeat
         paddle.base.core.nvprof_start()
         for i in range(1000):
-            yield
+            out = func(*args)
         paddle.base.core.nvprof_stop()
     else:
-        yield
+        out = func(*args)
+    return out
 
 
 def check_result(dtype, out_1, out_2, check_equal=False):

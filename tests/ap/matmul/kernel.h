@@ -3,13 +3,13 @@
 #include <cuda.h>
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
+#include <vector>
 
 namespace ap {
 
-void MatmulAddKernel(cudaStream_t *stream, const void *input,
-                     const void *weight, const void *bias, void *output,
-                     std::vector<int64_t> &input_shape,
-                     std::vector<int64_t> &weight_shape, bool transpose_b);
+void MatmulKernel(cudaStream_t *stream, const void *input, const void *weight,
+                  void *output, const std::vector<int64_t> &input_shape,
+                  const std::vector<int64_t> &weight_shape, bool transpose_b);
 
 void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
                           const void *weight, const void *bias, void *output,

@@ -121,11 +121,11 @@ struct GemmEpilogueParams {
     shape_args.batch_stride_D = m * n;
 
     /// Only available in RRR format
-    shape_args.batch_stride_C = is_C_bias ? 0 : m * n;
+    shape_args.batch_stride_C = (!bias || is_C_bias) ? 0 : m * n;
 
     shape_args.lda = transpose_a ? m : k;
     shape_args.ldb = transpose_b ? k : n;
-    shape_args.ldc_bias = is_C_bias ? 0 : n;
+    shape_args.ldc_bias = (!bias || is_C_bias) ? 0 : n;
     shape_args.ldd = n;
   }
 };
@@ -149,7 +149,7 @@ struct GemmBroadcastEpilogueParams : GemmEpilogueParams {
         broadcast_out(broadcast_out) {}
 };
 
-// Convert to cutlass data type
+// Convert CUDA data type to cutlass data type
 template <typename T> struct CutlassDataType { using Type = T; };
 
 template <> struct CutlassDataType<half> { using Type = cutlass::half_t; };

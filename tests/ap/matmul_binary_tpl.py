@@ -45,23 +45,31 @@ class MatmulBinaryTemplate:
         input0_shape_kargs,
         input1_shape_kargs,
     ):
-        map(
-            self._register_name,
-            [
-                [input0_karg,       "input0"],
-                [input1_karg,       "input1"],
-                [output_karg,       "output"],
-                *map(lambda i: [input0_shape_kargs[i], f"input0_dim{i}"], range(len(input0_shape_kargs))),
-                *map(lambda i: [input1_shape_kargs[i], f"input1_dim{i}"], range(len(input1_shape_kargs))),
-            ],
+        kargs_name_pair_list = [
+            [input0_karg, "input0"],
+            [input1_karg, "input1"],
+            [output_karg, "output"],
+            *map(
+                lambda i: [input0_shape_kargs[i], f"input0_dim{i}"],
+                range(len(input0_shape_kargs)),
+            ),
+            *map(
+                lambda i: [input1_shape_kargs[i], f"input1_dim{i}"],
+                range(len(input1_shape_kargs)),
+            ),
+        ]
+        print(f"-- kargs_name_pair_list: {kargs_name_pair_list}")
+        map(self._register_name, kargs_name_pair_list)
+
+        mut_lir_code_gen_ctx = low_level_ir_code_gen_ctx_util.CudaLikeIrCodeGenCtx(
+            compute_dtype=DataType.float
         )
-        mut_lir_code_gen_ctx = low_level_ir_code_gen_ctx_util.CudaLikeIrCodeGenCtx()
         self.program_translator.translate(
             mut_kernel_arg_id_registry=self.mut_kernel_arg_id_registry,
-            mut_lir_code_gen_ctx=mut_lir_code_gen_ctx
+            mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
         )
         trivial_code_str = mut_lir_code_gen_ctx.get_stmts_joined_str()
-        print("matmul_binary_epilogue_code:\n", trivial_code_str)
+        print("-- matmul_binary_epilogue_code:\n", trivial_code_str)
         project_module = self.make_project(
             trivial_code_str,
             input0_karg,
@@ -154,10 +162,13 @@ class MatmulBinaryTemplate:
         def init_input_shape_with_args(i):
             karg = input_shape_kargs[i]
             return f"{indent}{input_name}_shape[{i}] = {self.get_kernel_arg_id_var_name(karg)};"
-      
-        shape_vector_init_str = f"{input_name}_shape.resize({len(input_shape_kargs)});\n"
-        return shape_vector_init_str + "\n".join(map(init_input_shape_with_args, range(len(input_shape_kargs))))
 
+        shape_vector_init_str = (
+            f"{input_name}_shape.resize({len(input_shape_kargs)});\n"
+        )
+        return shape_vector_init_str + "\n".join(
+            map(init_input_shape_with_args, range(len(input_shape_kargs)))
+        )
 
     def make_project(
         self,
@@ -174,7 +185,6 @@ class MatmulBinaryTemplate:
 #include <cuda_fp16.h>
 #include <vector>
 
-#include "epilogue_op.h"
 #include "cutlass_matmul.cuh"
 
 namespace ap {
@@ -209,11 +219,14 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
   ap::GemmEpilogueParams params(
       *cuda_stream_ptr, $input0, $input1, nullptr, $output, $input0_shape, $input1_shape);
 
-  typename ap::VariadicEpilogueFunctor<float>::Arguments epilogue_args;
+  using ElementT = AP_GENERATED_ELEMENT_DTYPE;
+  using ElementComputeT = float;
+
+  typename ap::VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
 
 AP_EPILOGUE_ARGUMENTS_INIT
 
-  ap::CutlassMatmulAddVariadic<AP_GENERATED_ELEMENT_DTYPE, float, ap::VariadicEpilogueFunctor>(params, epilogue_args);
+  ap::CutlassMatmulAddVariadic<ElementT, ElementComputeT, ap::VariadicEpilogueFunctor>(params, epilogue_args);
 }
 }
 
@@ -226,8 +239,14 @@ AP_EPILOGUE_ARGUMENTS_INIT
             )
             .replace("AP_GENERATED_ELEMENT_DTYPE", output_dtype)
             .replace("AP_KERNEL_ARGS_DECLARE", self.get_kernel_arg_list_str())
-            .replace("AP_INPUT0_SHAPE_INIT", self.get_input_shape_init_str("$input0", input0_shape_kargs, "  "))
-            .replace("AP_INPUT1_SHAPE_INIT", self.get_input_shape_init_str("$input1", input1_shape_kargs, "  "))
+            .replace(
+                "AP_INPUT0_SHAPE_INIT",
+                self.get_input_shape_init_str("$input0", input0_shape_kargs, "  "),
+            )
+            .replace(
+                "AP_INPUT1_SHAPE_INIT",
+                self.get_input_shape_init_str("$input1", input1_shape_kargs, "  "),
+            )
             .replace(
                 "AP_EPILOGUE_ARGUMENTS_FIELDS", self.get_epilogue_arguments_fields_str()
             )

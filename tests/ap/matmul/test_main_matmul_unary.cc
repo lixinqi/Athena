@@ -10,17 +10,8 @@
 #endif
 
 template <typename T>
-void TestMatmulAddUnary(cudaStream_t stream, bool add_bias) {
-  int batch_count = 4;
-  int m = 65536;
-  int n = 32;
-  int k = 128;
-
-  // int batch_count = 1;
-  // int m = 256;
-  // int n = 512;
-  // int k = 256;
-
+void TestMatmulAddUnary(cudaStream_t stream, int batch_count, int m, int n,
+                        int k, bool add_bias) {
   bool transpose_b = false;
 
   std::vector<int64_t> input_shape{batch_count, m, k};
@@ -64,16 +55,20 @@ void TestMatmulAddUnary(cudaStream_t stream, bool add_bias) {
   cudaFree(output);
 }
 
-int main(int argc, const char *arg[]) {
+int main(int argc, const char *argv[]) {
+  ProblemSizeArgs args = ParseArgs(argc, argv);
+
   cudaStream_t stream;
   CHECK_CUDA(cudaStreamCreate(&stream));
 
   bool add_bias = true;
 
 #if USE_FLOAT16
-  TestMatmulAddUnary<half>(stream, add_bias);
+  TestMatmulAddUnary<half>(stream, args.batch_count, args.m, args.n, args.k,
+                           add_bias);
 #else
-  TestMatmulAddUnary<float>(stream, add_bias);
+  TestMatmulAddUnary<float>(stream, args.batch_count, args.m, args.n, args.k,
+                            add_bias);
 #endif
 
   CHECK_CUDA(cudaStreamDestroy(stream));
