@@ -18,10 +18,9 @@ class CudaLikeIrCodeGenCtx:
 
     def let(self, var, val_name):
         var_dtype_name = self.dtype2type_name[var.get_dtype()]
-        type_name_list = [f"{var_dtype_name}", f"{self.compute_dtype_name}"]
-        index = int(self.compute_dtype != var.get_dtype())
-        type_name = type_name_list[index]
-        type_cast_str = self.type_cast_str_list[index]
+        is_same = self.compute_dtype == var.get_dtype()
+        type_name = f"{var_dtype_name}" if is_same else f"{self.compute_dtype_name}"
+        type_cast_str = "" if is_same else f"static_cast<{self.compute_dtype_name}>"
         self.stmts.append(f"{type_name} {var.var_name} = {type_cast_str}({val_name});")
 
     def get_stmts_joined_str(self):
