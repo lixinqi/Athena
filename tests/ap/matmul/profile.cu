@@ -12,8 +12,9 @@ int ProfileBestConfig(
   std::cout
       << "=================================================================="
       << std::endl;
-  std::cout << "-- [ProfileBestConfig] Tunning for problem: {" << params.m
-            << ", " << params.n << ", " << params.k << "}" << std::endl;
+  std::cout << "-- [ProfileBestConfig] Tunning for problem: {"
+            << params.batch_count << ", " << params.m << ", " << params.n
+            << ", " << params.k << "}" << std::endl;
 
   constexpr int kWarmupIters = 10;
   constexpr int kRepeatIters = 1000;

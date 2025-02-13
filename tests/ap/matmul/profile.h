@@ -1,5 +1,5 @@
-#include "matmul.h"
 #include <cuda_profiler_api.h>
+#include "matmul.h"
 
 namespace ap {
 
