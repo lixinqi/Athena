@@ -13,7 +13,7 @@
   }
 #endif
 
-#ifndef CUTLASS_TRACE_DEVICE_TID
+#ifndef CUTLASS_TRACE_DEVICE_TID_DETAIL
 #define CUTLASS_TRACE_DEVICE_TID_DETAIL(bidz, bidx, tidx, format, ...)         \
   {                                                                            \
     if (blockIdx.x == bidx && blockIdx.y == 0 && blockIdx.z == bidz &&         \
@@ -24,7 +24,9 @@
           blockIdx.z, threadIdx.x, threadIdx.y, threadIdx.z, ##__VA_ARGS__);   \
     }                                                                          \
   }
+#endif
 
+#ifndef CUTLASS_TRACE_DEVICE_TID
 #define CUTLASS_TRACE_DEVICE_TID(format, ...)                                  \
   {                                                                            \
     CUTLASS_TRACE_DEVICE_TID_DETAIL(0, 0, 0, format, ##__VA_ARGS__)            \

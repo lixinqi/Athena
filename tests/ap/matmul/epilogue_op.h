@@ -30,7 +30,7 @@ template <typename T> struct ScaleFunctor {
 template <typename T> struct VariadicEpilogueFunctor {
   struct Arguments {
     int64_t in0_shape[3];
-#if USE_FLOAT16
+#if AP_USE_FLOAT16
     const half *in0_ptr{nullptr};
 #else
     const T *in0_ptr{nullptr};

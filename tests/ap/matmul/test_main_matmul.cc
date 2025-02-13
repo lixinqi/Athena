@@ -36,7 +36,7 @@ int main(int argc, const char *argv[]) {
   cudaStream_t stream;
   CHECK_CUDA(cudaStreamCreate(&stream));
 
-#if USE_FLOAT16
+#if AP_USE_FLOAT16
   TestMatmul<half>(stream, args.batch_count, args.m, args.n, args.k);
 #else
   TestMatmul<float>(stream, args.batch_count, args.m, args.n, args.k);

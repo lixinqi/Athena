@@ -55,6 +55,9 @@ struct GemmEpilogueParams {
   int n;
   int k;
 
+  bool transpose_a;
+  bool transpose_b;
+
   // Shape related aruguments
   struct ShapeArguments {
     int64_t batch_stride_A;
@@ -84,7 +87,7 @@ struct GemmEpilogueParams {
                      const std::vector<int64_t> &weight_shape,
                      bool transpose_a = false, bool transpose_b = false)
       : stream(stream), input(input), weight(weight), bias(bias),
-        output(output) {
+        output(output), transpose_a(transpose_a), transpose_b(transpose_b) {
     ASSERT_CHECK(input_shape.size() >= 2U);
     ASSERT_CHECK(weight_shape.size() >= 2U);
 

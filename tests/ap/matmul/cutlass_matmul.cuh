@@ -11,12 +11,7 @@
 #include "cutlass_patch/gemm/device/gemm_universal_with_variadic.h"
 
 #include "matmul.h"
-
-#if TUNE_TILE_SHAPE
-#include "tile_shape.h"
-#else
-#include "default_tile_shape.h"
-#endif
+#include "default_config_id.h"
 
 namespace ap {
 
@@ -31,11 +26,11 @@ struct GemmOperation<float> {
   using Type = cutlass::arch::OpMultiplyAddFastF32;
 };
 
-cutlass::gemm::GemmUniversalMode GetGemmMode(int batch_count) {
+static cutlass::gemm::GemmUniversalMode GetGemmMode(int batch_count) {
   return batch_count > 1 ? cutlass::gemm::GemmUniversalMode::kBatched : cutlass::gemm::GemmUniversalMode::kGemm;
 }
 
-void* GetWorkspace(size_t workspace_size) {
+static void* GetWorkspace(size_t workspace_size) {
   static cutlass::device_memory::allocation<uint8_t> workspace;
   if (workspace.size() < workspace_size) {
     workspace.reset(workspace_size);
@@ -46,7 +41,9 @@ void* GetWorkspace(size_t workspace_size) {
 template <typename ElementT,
           typename ElementComputeT,
           bool TransposeA = false,
-          bool TransposeB = false>
+          bool TransposeB = false,
+          int ConfigId = DefaultConfig::kConfigId,
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
 void CutlassMatmul(const GemmEpilogueParams& params) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -73,12 +70,12 @@ void CutlassMatmul(const GemmEpilogueParams& params) {
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfig<ElementT>::TShape,
-      typename GemmTuningConfig<ElementT>::WShape,
-      typename GemmTuningConfig<ElementT>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfig<ElementT>::SwizzleThreadBlock,             // how threadblocks are scheduled on GPU
-      GemmTuningConfig<ElementT>::NumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type            // Operation performed by GEMM
@@ -132,11 +129,9 @@ template <typename ElementT,
           typename ElementComputeT,
           template<typename T> class UnaryFunctor,
           bool TransposeA = false,
-          bool TransposeB = false>
-//           typename TShape = cutlass::gemm::GemmShape<16, 64, 64>,
-//           typename WShape = cutlass::gemm::GemmShape<16, 32, 64>,
-//           typename IShape = cutlass::gemm::GemmShape<16, 8, 16>,
-//           int NumStages = 5>
+          bool TransposeB = false,
+          int ConfigId = DefaultConfig::kConfigId,
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
 void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename UnaryFunctor<ElementComputeT>::Arguments& unary_args) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -167,12 +162,12 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfig<ElementT>::TShape,
-      typename GemmTuningConfig<ElementT>::WShape,
-      typename GemmTuningConfig<ElementT>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfig<ElementT>::SwizzleThreadBlock,
-      GemmTuningConfig<ElementT>::NumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
@@ -222,7 +217,10 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
   CHECK_CUTLASS(device_gemm.run(params.stream));
 }
 
-template <typename ElementT, typename ElementComputeT>
+template <typename ElementT,
+          typename ElementComputeT,
+          int ConfigId = DefaultConfig::kConfigId,
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
 void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -270,12 +268,12 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfig<ElementT>::TShape,
-      typename GemmTuningConfig<ElementT>::WShape,
-      typename GemmTuningConfig<ElementT>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfig<ElementT>::SwizzleThreadBlock,
-      GemmTuningConfig<ElementT>::NumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
@@ -338,7 +336,9 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
 
 template <typename ElementT,
           typename ElementComputeT,
-          template<typename T> class VariadicFunctor>
+          template<typename T> class VariadicFunctor,
+          int ConfigId = DefaultConfig::kConfigId,
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
 void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename VariadicFunctor<ElementComputeT>::Arguments& variadic_args) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -366,12 +366,12 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfig<ElementT>::TShape,
-      typename GemmTuningConfig<ElementT>::WShape,
-      typename GemmTuningConfig<ElementT>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfig<ElementT>::SwizzleThreadBlock,
-      GemmTuningConfig<ElementT>::NumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM

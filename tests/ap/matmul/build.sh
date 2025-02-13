@@ -5,13 +5,13 @@ CUTLASS_DIR=/work/abstract_pass/Athena/tests/ap/matmul/cutlass
 SOURCE_DIR=/work/abstract_pass/Athena/tests/ap/matmul
 AP_LIB_DIR=/work/abstract_pass/Athena/tests/ap/ap_workspace/2984375663431405214/main
 
-DEBUG=1
-USE_HALF=0
-ENABLE_PROFILE=0
+DEBUG=0
+PROFILE=0
+USE_HALF=1
 
 #SO_NAME=matmul_add_unary_kernel
 SO_NAME=matmul_kernel
-TEST_NAME=test_main_matmul_binary
+TEST_NAME=test_main_matmul_unary
 
 rm -rf lib${SO_NAME}.so
 rm -rf test_main
@@ -23,11 +23,10 @@ nvcc -std=c++17 -O3 \
     -I ${CUTLASS_DIR}/tools/util/include \
     -I ${SOURCE_DIR} \
     -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1 \
-    -DCUTLASS_DEBUG_TRACE_LEVEL=1 \
-    -DTUNE_TILE_SHAPE=0 \
-    -DUSE_FLOAT16=${USE_HALF} \
-    -DDEBUG=${DEBUG} \
-    --shared native_kernel.cu kernel.cu -o lib${SO_NAME}.so
+    -DCUTLASS_DEBUG_TRACE_LEVEL=${DEBUG} \
+    -DAP_USE_FLOAT16=${USE_HALF} \
+    -DAP_ENABLE_DEBUG=${DEBUG} \
+    --shared native_kernel.cu matmul_unary_kernel.cu matmul_binary_kernel.cu kernel.cu profile.cu -o lib${SO_NAME}.so
 
 #    --shared ${AP_LIB_DIR}/matmul_add_unary_kernel.cu -o libmatmul_add_unary_kernel.so
 
@@ -38,7 +37,7 @@ nvcc -std=c++17 -O3 \
     -I ${SOURCE_DIR} \
     -I ${AP_LIB_DIR} \
     -L./ -l${SO_NAME} -lcuda -lcudart \
-    -DENABLE_PROFILE=${ENABLE_PROFILE}  \
+    -DAP_ENABLE_PROFILE=${PROFILE}  \
     -DUSE_FLOAT16=${USE_HALF} \
-    -DDEBUG=${DEBUG} \
+    -DAP_ENABLE_DEBUG=${DEBUG} \
     test_util.cu ${TEST_NAME}.cc -o test_main
