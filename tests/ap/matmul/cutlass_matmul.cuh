@@ -1,19 +1,17 @@
 #pragma once
 
 #include "cutlass/epilogue/thread/linear_combination_bias_elementwise.h"
-#include "cutlass_epilogue/thread/linear_combination_unary.h"
 #include "cutlass/util/device_memory.h"
 
 #include "cutlass/gemm/device/gemm_universal.h"
 #include "cutlass/gemm/device/gemm_universal_with_broadcast.h"
 
-#include "matmul.h"
+#include "cutlass_patch/epilogue/thread/linear_combination_unary.h"
+#include "cutlass_patch/epilogue/thread/linear_combination_variadic.h"
+#include "cutlass_patch/gemm/device/gemm_universal_with_variadic.h"
 
-#if TUNE_TILE_SHAPE
-#include "tile_shape.h"
-#else
-#include "default_tile_shape.h"
-#endif
+#include "matmul.h"
+#include "default_config_id.h"
 
 namespace ap {
 
@@ -28,12 +26,11 @@ struct GemmOperation<float> {
   using Type = cutlass::arch::OpMultiplyAddFastF32;
 };
 
-
-cutlass::gemm::GemmUniversalMode GetGemmMode(int batch_count) {
+static cutlass::gemm::GemmUniversalMode GetGemmMode(int batch_count) {
   return batch_count > 1 ? cutlass::gemm::GemmUniversalMode::kBatched : cutlass::gemm::GemmUniversalMode::kGemm;
 }
 
-void* GetWorkspace(size_t workspace_size) {
+static void* GetWorkspace(size_t workspace_size) {
   static cutlass::device_memory::allocation<uint8_t> workspace;
   if (workspace.size() < workspace_size) {
     workspace.reset(workspace_size);
@@ -44,8 +41,10 @@ void* GetWorkspace(size_t workspace_size) {
 template <typename ElementT,
           typename ElementComputeT,
           bool TransposeA = false,
-          bool TransposeB = false>
-void CutlassMatmulAdd(const GemmEpilogueParams& params) {
+          bool TransposeB = false,
+          int ConfigId = DefaultConfig::kConfigId,
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
+void CutlassMatmul(const GemmEpilogueParams& params) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
   using ElementInputA = typename CutlassDataType<ElementT>::Type; // <- data type of elements in input matrix A
@@ -59,7 +58,7 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
       128 / cutlass::sizeof_bits<ElementOutput>::value,
       ElementAccumulator,
       ElementComputeEpilogue,
-      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x C + bias
+      cutlass::epilogue::thread::ScaleType::OnlyAlphaScaling>;  // <- alpha x AB, no bias
 
   using GemmFunc = cutlass::gemm::device::GemmUniversal<
       ElementInputA,
@@ -71,12 +70,12 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfig<ElementT>::TShape,
-      typename GemmTuningConfig<ElementT>::WShape,
-      typename GemmTuningConfig<ElementT>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfig<ElementT>::SwizzleThreadBlock,             // how threadblocks are scheduled on GPU
-      GemmTuningConfig<ElementT>::NumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type            // Operation performed by GEMM
@@ -84,15 +83,13 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
-  GemmShapeArguments<TransposeA, TransposeB> gemm_shape_args(problem_size, params.is_B_weight, params.is_C_bias);
 
   const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
   const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
-  const ElementOutput *bias = reinterpret_cast<const ElementOutput *>(params.bias);
   ElementOutput *output = reinterpret_cast<ElementOutput *>(params.output);
 
   ElementComputeEpilogue alpha = static_cast<ElementComputeEpilogue>(1);
-  ElementComputeEpilogue beta = bias ? static_cast<ElementComputeEpilogue>(1) : static_cast<ElementComputeEpilogue>(0);
+  ElementComputeEpilogue beta = static_cast<ElementComputeEpilogue>(0);
 
   typename GemmFunc::Arguments arguments{
       GetGemmMode(params.batch_count),
@@ -101,16 +98,16 @@ void CutlassMatmulAdd(const GemmEpilogueParams& params) {
       {alpha, beta},                        // <- epilogue params, alpha, beta
       input,                                // <- input, ptr_A
       weight,                               // <- input, ptr_B
-      bias,                                 // <- input, ptr_C or bias
+      nullptr,                              // <- input, ptr_C or bias
       output,                               // <- output, ptr_D
-      gemm_shape_args.batch_stride_A,
-      gemm_shape_args.batch_stride_B,
-      gemm_shape_args.batch_stride_C,
-      gemm_shape_args.batch_stride_D,
-      gemm_shape_args.lda,
-      gemm_shape_args.ldb,
-      gemm_shape_args.ldc_bias,
-      gemm_shape_args.ldd
+      params.shape_args.batch_stride_A,
+      params.shape_args.batch_stride_B,
+      params.shape_args.batch_stride_C,
+      params.shape_args.batch_stride_D,
+      params.shape_args.lda,
+      params.shape_args.ldb,
+      params.shape_args.ldc_bias,
+      params.shape_args.ldd
   };
 
   size_t workspace_size = GemmFunc::get_workspace_size(arguments);
@@ -132,11 +129,9 @@ template <typename ElementT,
           typename ElementComputeT,
           template<typename T> class UnaryFunctor,
           bool TransposeA = false,
-          bool TransposeB = false>
-//           typename TShape = cutlass::gemm::GemmShape<16, 64, 64>,
-//           typename WShape = cutlass::gemm::GemmShape<16, 32, 64>,
-//           typename IShape = cutlass::gemm::GemmShape<16, 8, 16>,
-//           int NumStages = 5>
+          bool TransposeB = false,
+          int ConfigId = DefaultConfig::kConfigId,
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
 void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename UnaryFunctor<ElementComputeT>::Arguments& unary_args) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -155,7 +150,7 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       128 / cutlass::sizeof_bits<ElementOutput>::value,
       ElementAccumulator,
       ElementComputeEpilogue,
-      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x C + bias
+      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x AB + bias
 
   using GemmFunc = cutlass::gemm::device::GemmUniversal<
       ElementInputA,
@@ -167,12 +162,12 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfig<ElementT>::TShape,
-      typename GemmTuningConfig<ElementT>::WShape,
-      typename GemmTuningConfig<ElementT>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfig<ElementT>::SwizzleThreadBlock,
-      GemmTuningConfig<ElementT>::NumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
@@ -180,7 +175,6 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
-  GemmShapeArguments<TransposeA, TransposeB> gemm_shape_args(problem_size, params.is_B_weight, params.is_C_bias);
 
   const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
   const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
@@ -199,14 +193,14 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       weight,                               // <- input, ptr_B
       bias,                                 // <- input, ptr_C or bias
       output,                               // <- output, ptr_D
-      gemm_shape_args.batch_stride_A,
-      gemm_shape_args.batch_stride_B,
-      gemm_shape_args.batch_stride_C,
-      gemm_shape_args.batch_stride_D,
-      gemm_shape_args.lda,
-      gemm_shape_args.ldb,
-      gemm_shape_args.ldc_bias,
-      gemm_shape_args.ldd
+      params.shape_args.batch_stride_A,
+      params.shape_args.batch_stride_B,
+      params.shape_args.batch_stride_C,
+      params.shape_args.batch_stride_D,
+      params.shape_args.lda,
+      params.shape_args.ldb,
+      params.shape_args.ldc_bias,
+      params.shape_args.ldd
   };
 
   size_t workspace_size = GemmFunc::get_workspace_size(arguments);
@@ -223,8 +217,11 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
   CHECK_CUTLASS(device_gemm.run(params.stream));
 }
 
-template <typename ElementT, typename ElementComputeT>
-void CutlassMatmulAddBinary(const GemmBroadcastEpilogueParams& params) {
+template <typename ElementT,
+          typename ElementComputeT,
+          int ConfigId = DefaultConfig::kConfigId,
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
+void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
   using ElementInputA = typename CutlassDataType<ElementT>::Type; // <- data type of elements in input matrix A
@@ -243,8 +240,7 @@ void CutlassMatmulAddBinary(const GemmBroadcastEpilogueParams& params) {
     ElementComputeEpilogue,
     ElementOutputZ,
     ElementOutputT,
-    128 / cutlass::sizeof_bits<ElementOutputC>::value,
-    ap::IdentityFunctor<ElementComputeEpilogue>
+    128 / cutlass::sizeof_bits<ElementOutputC>::value
   >;
 
   // Epilogue operation as LinearCombinationResidualBlock:
@@ -272,12 +268,12 @@ void CutlassMatmulAddBinary(const GemmBroadcastEpilogueParams& params) {
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfig<ElementT>::TShape,
-      typename GemmTuningConfig<ElementT>::WShape,
-      typename GemmTuningConfig<ElementT>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfig<ElementT>::SwizzleThreadBlock,
-      GemmTuningConfig<ElementT>::NumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
@@ -285,7 +281,6 @@ void CutlassMatmulAddBinary(const GemmBroadcastEpilogueParams& params) {
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
-  GemmShapeArguments<false, false> gemm_shape_args(problem_size, params.is_B_weight, params.is_C_bias);
 
   const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
   const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
@@ -311,18 +306,105 @@ void CutlassMatmulAddBinary(const GemmBroadcastEpilogueParams& params) {
       output,                               // <- output, ptr_D, Z, shape={M, N}
       broadcast,                            // <- input, ptr_Vector, Broadcast, shape={M, 1}
       broadcast_out,                        // <- output, ptr_Tensor, T
-      gemm_shape_args.batch_stride_A,
-      gemm_shape_args.batch_stride_B,
-      gemm_shape_args.batch_stride_C,
-      gemm_shape_args.batch_stride_D,
+      params.shape_args.batch_stride_A,
+      params.shape_args.batch_stride_B,
+      params.shape_args.batch_stride_C,
+      params.shape_args.batch_stride_D,
       batch_stride_Broadcast,               // <- batch_stride_Vector, need broadcast
       problem_size.m() * problem_size.n(),  // <- batch_stride_Tensor
-      gemm_shape_args.lda,
-      gemm_shape_args.ldb,
-      gemm_shape_args.ldc_bias,
-      gemm_shape_args.ldd,
+      params.shape_args.lda,
+      params.shape_args.ldb,
+      params.shape_args.ldc_bias,
+      params.shape_args.ldd,
       ldr_broadcast,                        // <- ldr, must be zero
       problem_size.n()                      // <- ldt
+  };
+
+  size_t workspace_size = GemmFunc::get_workspace_size(arguments);
+  void* workspace = workspace_size > 0 ? GetWorkspace(workspace_size) : nullptr;
+
+  GemmFunc device_gemm;
+
+  CHECK_CUTLASS(device_gemm.can_implement(arguments));
+  CHECK_CUTLASS(device_gemm.initialize(arguments, workspace, params.stream));
+
+  //
+  // Run the GEMM
+  //
+  CHECK_CUTLASS(device_gemm(params.stream));
+}
+
+template <typename ElementT,
+          typename ElementComputeT,
+          template<typename T> class VariadicFunctor,
+          int ConfigId = DefaultConfig::kConfigId,
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
+void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename VariadicFunctor<ElementComputeT>::Arguments& variadic_args) {
+  using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
+  using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
+  using ElementInputA = typename CutlassDataType<ElementT>::Type; // <- data type of elements in input matrix A
+  using ElementInputB = typename CutlassDataType<ElementT>::Type; // <- data type of elements in input matrix B
+  using ElementOutput = typename CutlassDataType<ElementT>::Type;// <- data type of elements in output matrix D
+
+  // Epilogue operation as LinearCombination:
+  //  alpha * accumulator + beta * source
+  using EpilogueOutputOp = cutlass::epilogue::thread::LinearCombinationVariadic<
+      VariadicFunctor,
+      ElementOutput,
+      128 / cutlass::sizeof_bits<ElementOutput>::value,
+      ElementAccumulator,
+      ElementComputeEpilogue,
+      cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x AB + bias
+
+  using GemmFunc = cutlass::gemm::device::GemmUniversalWithVariadic<
+      ElementInputA,
+      cutlass::layout::RowMajor,
+      ElementInputB,
+      cutlass::layout::RowMajor,
+      ElementOutput,
+      cutlass::layout::RowMajor,
+      ElementAccumulator,
+      cutlass::arch::OpClassTensorOp,
+      cutlass::arch::Sm80,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
+      EpilogueOutputOp,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
+      128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
+      128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
+      typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
+  >;
+
+  /// Arguments
+  cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
+
+  const ElementInputA *input = reinterpret_cast<const ElementInputA *>(params.input);
+  const ElementInputB *weight = reinterpret_cast<const ElementInputB *>(params.weight);
+  const ElementOutput *bias = reinterpret_cast<const ElementOutput *>(params.bias);
+  ElementOutput *output = reinterpret_cast<ElementOutput *>(params.output);
+
+  ElementComputeEpilogue alpha = static_cast<ElementComputeEpilogue>(1);
+  ElementComputeEpilogue beta = bias ? static_cast<ElementComputeEpilogue>(1) : static_cast<ElementComputeEpilogue>(0);
+
+  typename GemmFunc::Arguments arguments{
+      GetGemmMode(params.batch_count),
+      problem_size,                         // <- problem size of matrix multiplication
+      params.batch_count,                   // <- batch_count or k-dimension split factor
+      {alpha, beta, variadic_args},         // <- epilogue params, alpha, beta
+      input,                                // <- input, ptr_A, A, shape={M, K}
+      weight,                               // <- input, ptr_B, B, shape={K, N}
+      bias,                                 // <- input, ptr_C, shape={M, N} or {1, N}
+      output,                               // <- output, ptr_D, Z, shape={M, N}
+      params.shape_args.batch_stride_A,
+      params.shape_args.batch_stride_B,
+      params.shape_args.batch_stride_C,
+      params.shape_args.batch_stride_D,
+      params.shape_args.lda,
+      params.shape_args.ldb,
+      params.shape_args.ldc_bias,
+      params.shape_args.ldd
   };
 
   size_t workspace_size = GemmFunc::get_workspace_size(arguments);

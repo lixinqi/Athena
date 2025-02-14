@@ -23,14 +23,14 @@ struct AddFunctor {
   __forceinline__ __host__ __device__
   T Load(const Arguments& args, const MatrixCoord& coord, int idx) const {
     // Specially for the case of out_shape_len = 2
-    size_t offset = coord.j * args.out_shape[1] + coord.k;
+    size_t offset = coord.row * args.out_shape[1] + coord.column;
     return reinterpret_cast<const T*>(args.ins[idx].ptr)[offset];
   }
 
   __forceinline__ __host__ __device__
   T LoadWithBroadcast(const Arguments& args, const MatrixCoord& coord, int idx) const {
     // Specially for the bias case
-    size_t offset = coord.k;
+    size_t offset = coord.column;
     return reinterpret_cast<const T*>(args.ins[idx].ptr)[offset];
   }
 

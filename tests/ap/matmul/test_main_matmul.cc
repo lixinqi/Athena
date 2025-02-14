@@ -1,57 +1,44 @@
 #include <iostream>
 
-#include "profile.h"
-#include "test_util.h"
 #include "kernel.h"
-
+#include "test_util.h"
 
 template <typename T>
-void TestMatmulAdd(cudaStream_t stream, bool add_bias) {
-  int batch_count = 1;
-  int m = 256;
-  int n = 512;
-  int k = 256;
-
+void TestMatmul(cudaStream_t stream, int batch_count, int m, int n, int k) {
   bool transpose_b = false;
 
-  T* input = AllocateAndInit<T>(stream, batch_count * m * k, false, 1.);
-  T* weight = AllocateAndInit<T>(stream, k * n, false, 1.);
+  std::vector<int64_t> input_shape{batch_count, m, k};
+  std::vector<int64_t> weight_shape{k, n};
 
-  T* bias = nullptr;
-  if (add_bias) {
-    std::vector<float> bias_ref;
-    bias_ref.resize(n);
-    for (size_t i = 0; i < bias_ref.size(); ++i) {
-      bias_ref[i] = static_cast<float>(1000 * (i % 10));
-    }
-    bias = AllocateAndInit<T>(stream, n, false, 0., bias_ref);
-  }
-
-  T* output = AllocateAndInit<T>(stream, batch_count * m * n, false, 0.);
+  T *input = AllocateAndInit<T>(stream, batch_count * m * k, false, 1.);
+  T *weight = AllocateAndInit<T>(stream, k * n, false, 1.);
+  T *output = AllocateAndInit<T>(stream, batch_count * m * n, false, 0.);
   CHECK_CUDA(cudaStreamSynchronize(stream));
 
-  CHECK_CUDA(cudaMemsetAsync(output, 0, sizeof(T) * batch_count * m * n, stream));
-  // KERNEL_PROFILE(MatmulAddKernel(&stream, input, weight, bias, output, batch_count, m, n, k, transpose_b));
-  KERNEL_PROFILE(NativeMatmulAddKernel(&stream, input, weight, bias, output, batch_count, m, n, k, transpose_b));
+  CHECK_CUDA(
+      cudaMemsetAsync(output, 0, sizeof(T) * batch_count * m * n, stream));
+  KERNEL_PROFILE(ap::MatmulKernel(&stream, input, weight, output, input_shape,
+                                  weight_shape, transpose_b));
+  // KERNEL_PROFILE(NativeMatmulAddKernel(&stream, input, weight, bias, output,
+  //                                      batch_count, m, n, k, transpose_b));
 
-  Print<T>(stream, reinterpret_cast<T*>(output), batch_count, m, n);
+  Print<T>(stream, reinterpret_cast<T *>(output), batch_count, m, n);
 
   cudaFree(input);
   cudaFree(weight);
-  if (add_bias) {
-    cudaFree(bias);
-  }
   cudaFree(output);
 }
 
-int main(int argc, const char *arg[]) {
+int main(int argc, const char *argv[]) {
+  ProblemSizeArgs args = ParseArgs(argc, argv);
+
   cudaStream_t stream;
   CHECK_CUDA(cudaStreamCreate(&stream));
 
-#if USE_FLOAT16
-  TestMatmulAdd<half>(stream, false);
+#if AP_USE_FLOAT16
+  TestMatmul<half>(stream, args.batch_count, args.m, args.n, args.k);
 #else
-  TestMatmulAdd<float>(stream, true);
+  TestMatmul<float>(stream, args.batch_count, args.m, args.n, args.k);
 #endif
 
   CHECK_CUDA(cudaStreamDestroy(stream));
