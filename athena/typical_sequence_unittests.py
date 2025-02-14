@@ -40,7 +40,8 @@ flags.DEFINE_integer("window_size", 64, "pattern window size.")
 
 def main(argv):
     for file in glob.glob(f"{FLAGS.output_dir}/test_sequence_*.py"):
-        os.remove(file)
+        # os.remove(file)
+        pass
     assert FLAGS.ir_programs != ""
     assert FLAGS.op_example_input_tensor_meta != ""
     original_programs_file = FLAGS.ir_programs
@@ -61,9 +62,10 @@ def GetSha256sum(content):
 
 
 def PrintToTerminal(name, filepath, unittest):
-    print("# file-splitter-begin-fusion-op-name: ", name, filepath)
-    print(unittest)
-    print("# file-splitter--end--fusion-op-name: ", name, filepath)
+    print("# typical_sequence unittest:", name, filepath)
+    # print("# file-splitter-begin-fusion-op-name: ", name, filepath)
+    # print(unittest)
+    # print("# file-splitter--end--fusion-op-name: ", name, filepath)
 
 
 def WriteToFile(filepath, unittest):

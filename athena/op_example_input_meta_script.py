@@ -44,9 +44,10 @@ def GetSha256sum(content):
 
 
 def PrintToTerminal(name, filepath, unittest):
-    print("# file-splitter-begin-fusion-op-name: ", name, filepath)
-    print(unittest)
-    print("# file-splitter--end--fusion-op-name: ", name, filepath)
+    print("# file-splitter-fusion-op-name: ", name, filepath)
+    # print("# file-splitter-begin-fusion-op-name: ", name, filepath)
+    # print(unittest)
+    # print("# file-splitter--end--fusion-op-name: ", name, filepath)
 
 
 def WriteToFile(filepath, unittest):
