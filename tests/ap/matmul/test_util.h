@@ -11,17 +11,26 @@
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
 
-#define CHECK_CUDA(func)                                                       \
+#include "matmul.h"
+#include "profile.h"
+
+#if AP_ENABLE_PROFILE
+#define KERNEL_PROFILE(func)                                                   \
   {                                                                            \
-    cudaError_t err = func;                                                    \
-    if (err != cudaSuccess) {                                                  \
-      std::cerr << "[" << __FILE__ << ":" << __LINE__ << ", " << __FUNCTION__  \
-                << "] "                                                        \
-                << "CUDA error(" << err << "), " << cudaGetErrorString(err)    \
-                << " when call " << #func << std::endl;                        \
-      exit(EXIT_FAILURE);                                                      \
+    for (int i = 0; i < 10; ++i) {                                             \
+      func;                                                                    \
     }                                                                          \
+    CHECK_CUDA(cudaStreamSynchronize(stream));                                 \
+    ap::GpuTimer gpu_timer(true);                                              \
+    gpu_timer.Start(stream);                                                   \
+    for (int i = 0; i < 1000; ++i) {                                           \
+      func;                                                                    \
+    }                                                                          \
+    gpu_timer.Stop(stream);                                                    \
   }
+#else
+#define KERNEL_PROFILE(func) func
+#endif
 
 struct ProblemSizeArgs {
   int batch_count;

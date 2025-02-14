@@ -48,21 +48,3 @@ int ProfileBestConfig(
     const GemmEpilogueParams &params);
 
 } // namespace ap
-
-#if AP_ENABLE_PROFILE
-#define KERNEL_PROFILE(func)                                                   \
-  {                                                                            \
-    for (int i = 0; i < 10; ++i) {                                             \
-      func;                                                                    \
-    }                                                                          \
-    CHECK_CUDA(cudaStreamSynchronize(stream));                                 \
-    GpuTimer gpu_timer(true);                                                  \
-    gpu_timer.Start(stream);                                                   \
-    for (int i = 0; i < 1000; ++i) {                                           \
-      func;                                                                    \
-    }                                                                          \
-    gpu_timer.Stop(stream);                                                    \
-  }
-#else
-#define KERNEL_PROFILE(func) func
-#endif

@@ -1,7 +1,6 @@
 #include <iostream>
 
 #include "kernel.h"
-#include "profile.h"
 #include "test_util.h"
 
 template <typename T>

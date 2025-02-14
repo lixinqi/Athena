@@ -1,6 +1,5 @@
 #include <iostream>
 
-#include "profile.h"
 #include "test_util.h"
 
 #if USE_AP_GENERATED_KERNEL
