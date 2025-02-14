@@ -3,9 +3,9 @@ class CudaLikeIrCodeGenCtx:
         self.stmts = MutableList()
         self.dtype2type_name = OrderedDict(
             [
-                [DataType.float, "float"],
-                [DataType.float16, "half"],
-                [DataType.int32, "int"],
+                [DataType.float,   "float"],
+                [DataType.float16,  "half"],
+                [DataType.int32,     "int"],
                 [DataType.int64, "int64_t"],
             ]
         )
@@ -23,5 +23,5 @@ class CudaLikeIrCodeGenCtx:
         type_cast_str = "" if is_same else f"static_cast<{self.compute_dtype_name}>"
         self.stmts.append(f"{type_name} {var.var_name} = {type_cast_str}({val_name});")
 
-    def get_stmts_joined_str(self):
-        return "\n".join([*self.stmts])
+    def get_stmts_joined_str(self, indent):
+        return f"\n{indent}".join([*self.stmts])

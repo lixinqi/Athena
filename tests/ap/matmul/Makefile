@@ -40,7 +40,7 @@ ${BUILD_DIR}:
 
 ${TARGET}: ${BUILD_DIR}/test_main_matmul_unary.o ${LIB}
 	$(NVCC) -o $@ ${BUILD_DIR}/test_main_matmul_unary.o ${LDFLAGS}
-	$ echo ">> make success!\n"
+	$ echo ">> make success!"
 
 ${LIB}: ${LIB_OBJS}
 	$(NVCC) -shared -o $@ $^

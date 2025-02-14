@@ -68,7 +68,7 @@ class MatmulBinaryTemplate:
             mut_kernel_arg_id_registry=self.mut_kernel_arg_id_registry,
             mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
         )
-        trivial_code_str = mut_lir_code_gen_ctx.get_stmts_joined_str()
+        trivial_code_str = mut_lir_code_gen_ctx.get_stmts_joined_str(indent="    ")
         print("-- matmul_binary_epilogue_code:\n", trivial_code_str)
         project_module = self.make_project(
             trivial_code_str,
@@ -124,7 +124,7 @@ class MatmulBinaryTemplate:
             map(declare_epilogue_arguments_field, all_kernel_arg_id_and_names)
         )
 
-    def get_epilogue_arguments_fields_str(self):
+    def get_epilogue_arguments_fields_str(self, indent):
         def declare_epilogue_arguments_field(pair):
             kernel_arg_id = pair[0]
             var_name = pair[1]
@@ -133,28 +133,28 @@ class MatmulBinaryTemplate:
             )
             dtype = kernel_arg_id.type
             type_name = self.dtype2type_name[dtype]
-            return f"    {type_name} {field_name};"
+            return f"{type_name} {field_name};"
 
         generated_kernel_arg_id_and_names = (
             self.mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
         )
-        return "\n".join(
+        return f"\n{indent}".join(
             map(declare_epilogue_arguments_field, generated_kernel_arg_id_and_names)
         )
 
-    def get_epilogue_arguments_init_str(self, param_obj_name):
+    def get_epilogue_arguments_init_str(self, param_obj_name, indent):
         def declare_epilogue_arguments_assign(pair):
             kernel_arg_id = pair[0]
             var_name = pair[1]
             field_name = self.kernel_arg_translator.get_param_struct_field_name(
                 var_name
             )
-            return f"  {param_obj_name}.{field_name} = {var_name};"
+            return f"{param_obj_name}.{field_name} = {var_name};"
 
         generated_kernel_arg_id_and_names = (
             self.mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
         )
-        return "\n".join(
+        return f"\n{indent}".join(
             map(declare_epilogue_arguments_assign, generated_kernel_arg_id_and_names)
         )
 
@@ -192,7 +192,7 @@ namespace ap {
 template <typename T>
 struct VariadicEpilogueFunctor {
   struct Arguments {
-AP_EPILOGUE_ARGUMENTS_FIELDS
+    AP_EPILOGUE_ARGUMENTS_FIELDS
   };
 
   // Note: need to support vectorized operation
@@ -224,7 +224,7 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
 
   typename ap::VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
 
-AP_EPILOGUE_ARGUMENTS_INIT
+  AP_EPILOGUE_ARGUMENTS_INIT
 
   ap::CutlassMatmulAddVariadic<ElementT, ElementComputeT, ap::VariadicEpilogueFunctor>(params, epilogue_args);
 }
@@ -241,18 +241,18 @@ AP_EPILOGUE_ARGUMENTS_INIT
             .replace("AP_KERNEL_ARGS_DECLARE", self.get_kernel_arg_list_str())
             .replace(
                 "AP_INPUT0_SHAPE_INIT",
-                self.get_input_shape_init_str("$input0", input0_shape_kargs, "  "),
+                self.get_input_shape_init_str("$input0", input0_shape_kargs, indent="  "),
             )
             .replace(
                 "AP_INPUT1_SHAPE_INIT",
-                self.get_input_shape_init_str("$input1", input1_shape_kargs, "  "),
+                self.get_input_shape_init_str("$input1", input1_shape_kargs, indent="  "),
             )
             .replace(
-                "AP_EPILOGUE_ARGUMENTS_FIELDS", self.get_epilogue_arguments_fields_str()
+                "AP_EPILOGUE_ARGUMENTS_FIELDS", self.get_epilogue_arguments_fields_str(indent="    ")
             )
             .replace(
                 "AP_EPILOGUE_ARGUMENTS_INIT",
-                self.get_epilogue_arguments_init_str("epilogue_args"),
+                self.get_epilogue_arguments_init_str("epilogue_args", indent="  "),
             )
             .replace("$input0", self.get_kernel_arg_id_var_name(input0_karg))
             .replace("$input1", self.get_kernel_arg_id_var_name(input1_karg))
