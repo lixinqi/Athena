@@ -27,7 +27,7 @@ from paddle.static import InputSpec
 
 def trivial_matrix_binary(x, y, b):
     out = paddle.matmul(x, y)
-    return out + b
+    return paddle.nn.functional.relu(out + b)
 
 
 class CINNSubGraphNet(paddle.nn.Layer):
@@ -64,7 +64,7 @@ class TestAPMatmulBinary(unittest.TestCase):
         self.b = paddle.randn(self.b_shape, dtype=self.dtype)
         self.b.stop_gradient = False
 
-    def eval_symbolic(self, use_cinn, profile):
+    def eval_symbolic(self, use_cinn, profile, backward=False):
         net = CINNSubGraphNet()
         input_spec = [
             InputSpec(shape=self.x_shape, dtype=self.dtype),
