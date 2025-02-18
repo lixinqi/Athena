@@ -19,8 +19,6 @@ void TestMatmul(cudaStream_t stream, int batch_count, int m, int n, int k) {
       cudaMemsetAsync(output, 0, sizeof(T) * batch_count * m * n, stream));
   KERNEL_PROFILE(ap::MatmulKernel(&stream, input, weight, output, input_shape,
                                   weight_shape, transpose_b));
-  // KERNEL_PROFILE(NativeMatmulAddKernel(&stream, input, weight, bias, output,
-  //                                      batch_count, m, n, k, transpose_b));
 
   Print<T>(stream, reinterpret_cast<T *>(output), batch_count, m, n);
 

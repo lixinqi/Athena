@@ -1,4 +1,5 @@
 #include "cutlass_matmul.cuh"
+#include "default_config_id.h"
 #include "epilogue_op.h"
 #include "profile.h"
 #include <vector>
@@ -36,10 +37,11 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
                           const std::vector<int64_t> &input_shape,
                           const std::vector<int64_t> &weight_shape,
                           bool transpose_b) {
-  static int selected_config_id = -1;
-
   GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
                             weight_shape, false, transpose_b);
+
+#if AP_ENABLE_AUTO_TUNING
+  static int selected_config_id = -1;
 
   std::vector<std::function<void(const GemmEpilogueParams &)>>
       matmul_functions = {
@@ -73,6 +75,9 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
     selected_config_id = ProfileBestConfig(matmul_functions, params);
   }
   matmul_functions[selected_config_id](params);
+#else
+  RunMatmulAddUnaryKernel<DefaultConfig::kConfigId>(params);
+#endif
 }
 
 } // namespace ap

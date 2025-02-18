@@ -4,12 +4,14 @@ SOURCE_DIR  := /work/abstract_pass/Athena/tests/ap/matmul
 BUILD_DIR   := ${SOURCE_DIR}/build
 
 DEBUG     := 0
-PROFILE   := 0
+TUNING    := 1
+PROFILE   := 1
 USE_HALF  := 1
 
 LIB_NAME  := matmul_kernel
 LIB       := ${BUILD_DIR}/lib${LIB_NAME}.so
 TARGET    := ${BUILD_DIR}/test_main
+TARGET_OBJ:= ${BUILD_DIR}/test_main_matmul_binary.o
 
 # COMPILER OPTIONS
 NVCC      := nvcc
@@ -19,7 +21,7 @@ NVCCFLAGS += -Xcompiler=-fPIC -arch=sm_80 --expt-relaxed-constexpr
 NVCCFLAGS += -I ${CUDA_ROOT}/include -I ${SOURCE_DIR}
 NVCCFLAGS += -I ${CUTLASS_DIR}/include -I ${CUTLASS_DIR}/tools/util/include
 NVCCFLAGS += -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1 -DCUTLASS_DEBUG_TRACE_LEVEL=${DEBUG}
-NVCCFLAGS += -DAP_USE_FLOAT16=${USE_HALF} -DAP_ENABLE_DEBUG=${DEBUG} -DAP_ENABLE_PROFILE=${PROFILE} 
+NVCCFLAGS += -DAP_USE_FLOAT16=${USE_HALF} -DAP_ENABLE_DEBUG=${DEBUG} -DAP_ENABLE_PROFILE=${PROFILE} -DAP_ENABLE_AUTO_TUNING=${TUNING} 
 
 LDFLAGS   := -L./build -l${LIB_NAME} -lcuda -lcudart
 
@@ -38,8 +40,8 @@ all: ${LIB} ${TARGET}
 ${BUILD_DIR}:
 	mkdir -p ${BUILD_DIR}
 
-${TARGET}: ${BUILD_DIR}/test_main_matmul_unary.o ${LIB}
-	$(NVCC) -o $@ ${BUILD_DIR}/test_main_matmul_unary.o ${LDFLAGS}
+${TARGET}: ${TARGET_OBJ} ${LIB}
+	$(NVCC) -o $@ ${TARGET_OBJ} ${LDFLAGS}
 	$ echo ">> make success!"
 
 ${LIB}: ${LIB_OBJS}

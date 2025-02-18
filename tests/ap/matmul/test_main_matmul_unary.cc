@@ -1,12 +1,7 @@
 #include <iostream>
 
 #include "test_util.h"
-
-#if USE_AP_GENERATED_KERNEL
-#include "matmul_unary_kernel.h"
-#else
 #include "kernel.h"
-#endif
 
 template <typename T>
 void TestMatmulAddUnary(cudaStream_t stream, int batch_count, int m, int n,
@@ -35,14 +30,9 @@ void TestMatmulAddUnary(cudaStream_t stream, int batch_count, int m, int n,
   CHECK_CUDA(
       cudaMemsetAsync(output, 0, sizeof(T) * batch_count * m * n, stream));
 
-#if USE_AP_GENERATED_KERNEL
-  KERNEL_PROFILE(MatmulAddUnaryKernel(&stream, input, weight, output,
-                                      batch_count, m, n, k));
-#else
   KERNEL_PROFILE(ap::MatmulAddUnaryKernel(&stream, input, weight, bias, output,
                                           input_shape, weight_shape,
                                           transpose_b));
-#endif
 
   Print<T>(stream, reinterpret_cast<T *>(output), batch_count, m, n);
 
