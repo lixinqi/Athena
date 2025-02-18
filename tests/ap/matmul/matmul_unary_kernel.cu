@@ -66,7 +66,9 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
           RunMatmulAddUnaryKernel<20>,
           RunMatmulAddUnaryKernel<21>,
           RunMatmulAddUnaryKernel<22>,
-          RunMatmulAddUnaryKernel<23>};
+          RunMatmulAddUnaryKernel<23>,
+          RunMatmulAddUnaryKernel<24>,
+          RunMatmulAddUnaryKernel<25>};
   if (selected_config_id == -1) {
     selected_config_id = ProfileBestConfig(matmul_functions, params);
   }
