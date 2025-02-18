@@ -1,10 +1,44 @@
 import access_topo_drr
 
+@access_topo_drr.register_drr_pass("pd_op_cast", tag="default")
+class PdOpCastAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.exp_op = o.ap_native_op("pd_op.cast")
+    o.exp_op(
+      [t.input],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.fustion_op = o.ap_native_op("pd_op.relu")
+    o.fustion_op(
+      [t.input],
+      [t.output]
+    )
+
 @access_topo_drr.register_drr_pass("pd_op_exp", tag="default")
 class PdOpExpAccessTopoPass(access_topo_drr.DrrPass):
 
   def source_pattern(self, o, t):
     o.exp_op = o.ap_native_op("pd_op.exp")
+    o.exp_op(
+      [t.input],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.fustion_op = o.ap_native_op("pd_op.relu")
+    o.fustion_op(
+      [t.input],
+      [t.output]
+    )
+
+@access_topo_drr.register_drr_pass("cinn_op_scale", tag="default")
+class CinnOpScaleAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.exp_op = o.ap_native_op("cinn_op.scale")
     o.exp_op(
       [t.input],
       [t.output]
@@ -65,5 +99,83 @@ class PdOpSubtractAccessTopoPass(access_topo_drr.DrrPass):
     o.result_op = o.ap_native_op("pd_op.add")
     o.result_op(
       [t.input0, t.input1],
+      [t.output]
+    )
+
+@access_topo_drr.register_drr_pass("pd_op_divide", tag="default")
+class PdOpDivideAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.source_op = o.ap_native_op("pd_op.divide")
+    o.source_op(
+      [t.input0, t.input1],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.result_op = o.ap_native_op("pd_op.add")
+    o.result_op(
+      [t.input0, t.input1],
+      [t.output]
+    )
+
+@access_topo_drr.register_drr_pass("pd_op_maximum", tag="default")
+class PdOpMaximumAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.source_op = o.ap_native_op("pd_op.maximum")
+    o.source_op(
+      [t.input0, t.input1],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.result_op = o.ap_native_op("pd_op.add")
+    o.result_op(
+      [t.input0, t.input1],
+      [t.output]
+    )
+
+@access_topo_drr.register_drr_pass("pd_op_left_full_add", tag="default")
+class PdOpLeftFullAddAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.full_op = o.ap_native_op("pd_op.full")
+    o.full_op(
+      [],
+      [t.intermediate]
+    )
+    o.source_op = o.ap_native_op("pd_op.add")
+    o.source_op(
+      [t.intermediate, t.input],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
+      [t.input],
+      [t.output]
+    )
+
+@access_topo_drr.register_drr_pass("pd_op_right_full_add", tag="default")
+class PdOpRightFullAddAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.full_op = o.ap_native_op("pd_op.full")
+    o.full_op(
+      [],
+      [t.intermediate]
+    )
+    o.source_op = o.ap_native_op("pd_op.add")
+    o.source_op(
+      [t.input, t.intermediate],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
+      [t.input],
       [t.output]
     )
