@@ -27,7 +27,7 @@ from paddle.static import InputSpec
 
 def trivial_matrix_binary(x, y, b):
     out = paddle.matmul(x, y)
-    return out + b
+    return paddle.nn.functional.relu(out + b)
 
 
 class CINNSubGraphNet(paddle.nn.Layer):
