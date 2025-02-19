@@ -11,10 +11,11 @@ void MatmulAddBroadcastKernel(cudaStream_t *stream, const void *input,
                               void *output,
                               const std::vector<int64_t> &input_shape,
                               const std::vector<int64_t> &weight_shape,
+                              const std::vector<int64_t> &bias_shape,
                               bool need_broadcast) {
   GemmBroadcastEpilogueParams params(*stream, input, weight, bias, broadcast,
                                      broadcast_out, output, input_shape,
-                                     weight_shape, need_broadcast);
+                                     weight_shape, bias_shape, need_broadcast);
 
   CutlassMatmulAddBroadcast<half, float>(params);
 }

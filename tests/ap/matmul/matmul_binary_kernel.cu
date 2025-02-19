@@ -1,18 +1,13 @@
 #include "cutlass_matmul.cuh"
+#include "default_config_id.h"
 #include "epilogue_op.h"
 #include "profile.h"
 #include <vector>
 
 namespace ap {
 
-void MatmulAddBinaryKernel(cudaStream_t *stream, const void *input,
-                           const void *weight, const void *bias,
-                           const void *another, void *output,
-                           const std::vector<int64_t> &input_shape,
-                           const std::vector<int64_t> &weight_shape) {
-  GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
-                            weight_shape);
-
+template <int TuningConfigId>
+static void RunMatmulAddBinaryKernel(const GemmEpilogueParams &params) {
 #if AP_USE_FLOAT16
   using ElementT = half;
   using ElementComputeT = float;
@@ -22,13 +17,49 @@ void MatmulAddBinaryKernel(cudaStream_t *stream, const void *input,
 #endif
 
   typename VariadicEpilogueFunctor<ElementComputeT>::Arguments variadic_args;
-  variadic_args.in0_shape[0] = params.batch_count;
-  variadic_args.in0_shape[1] = params.m;
-  variadic_args.in0_shape[2] = params.n;
-  variadic_args.in0_ptr = reinterpret_cast<const ElementT *>(another);
+  // variadic_args.in0_shape[0] = params.batch_count;
+  // variadic_args.in0_shape[1] = params.m;
+  // variadic_args.in0_shape[2] = params.n;
+  // variadic_args.in0_ptr = reinterpret_cast<const ElementT *>(params.bias);
 
-  CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor>(
-      params, variadic_args);
+  CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
+                           TuningConfigId>(params, variadic_args);
+}
+
+void MatmulAddBinaryKernel(cudaStream_t *stream, const void *input,
+                           const void *weight, const void *bias,
+                           const void *another, void *output,
+                           const std::vector<int64_t> &input_shape,
+                           const std::vector<int64_t> &weight_shape,
+                           const std::vector<int64_t> &bias_shape) {
+  GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
+                            weight_shape, bias_shape);
+
+#if AP_ENABLE_AUTO_TUNING
+  static int selected_config_id = -1;
+
+  std::vector<std::function<void(const GemmEpilogueParams &)>>
+      matmul_functions = {
+          RunMatmulAddBinaryKernel<0>,  RunMatmulAddBinaryKernel<1>,
+          RunMatmulAddBinaryKernel<2>,  RunMatmulAddBinaryKernel<3>,
+          RunMatmulAddBinaryKernel<4>,  RunMatmulAddBinaryKernel<5>,
+          RunMatmulAddBinaryKernel<6>,  RunMatmulAddBinaryKernel<7>,
+          RunMatmulAddBinaryKernel<8>,  RunMatmulAddBinaryKernel<9>,
+          RunMatmulAddBinaryKernel<10>, RunMatmulAddBinaryKernel<11>,
+          RunMatmulAddBinaryKernel<12>, RunMatmulAddBinaryKernel<13>,
+          RunMatmulAddBinaryKernel<14>, RunMatmulAddBinaryKernel<15>,
+          RunMatmulAddBinaryKernel<16>, RunMatmulAddBinaryKernel<17>,
+          RunMatmulAddBinaryKernel<18>, RunMatmulAddBinaryKernel<19>,
+          RunMatmulAddBinaryKernel<20>, RunMatmulAddBinaryKernel<21>,
+          RunMatmulAddBinaryKernel<22>, RunMatmulAddBinaryKernel<23>,
+          RunMatmulAddBinaryKernel<24>, RunMatmulAddBinaryKernel<25>};
+  if (selected_config_id == -1) {
+    selected_config_id = ProfileBestConfig(matmul_functions, params);
+  }
+  matmul_functions[selected_config_id](params);
+#else
+  RunMatmulAddBinaryKernel<DefaultConfig::kConfigId>(params);
+#endif
 }
 
 } // namespace ap

@@ -217,7 +217,7 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
 
   cudaStream_t* cuda_stream_ptr = reinterpret_cast<cudaStream_t*>(stream_ptr);
   ap::GemmEpilogueParams params(
-      *cuda_stream_ptr, $input0, $input1, nullptr, $output, $input0_shape, $input1_shape);
+      *cuda_stream_ptr, $input0, $input1, nullptr, $output, $input0_shape, $input1_shape, std::vector<int64_t>{});
 
   using ElementT = AP_GENERATED_ELEMENT_DTYPE;
   using ElementComputeT = float;

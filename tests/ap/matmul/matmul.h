@@ -77,7 +77,6 @@ struct GemmEpilogueParams {
   const void *bias;
   void *output;
 
-  bool is_C_bias{true};
   cudaStream_t stream;
 
   GemmEpilogueParams() {}
@@ -85,6 +84,7 @@ struct GemmEpilogueParams {
                      const void *bias, void *output,
                      const std::vector<int64_t> &input_shape,
                      const std::vector<int64_t> &weight_shape,
+                     const std::vector<int64_t> &bias_shape,
                      bool transpose_a = false, bool transpose_b = false)
       : stream(stream), input(input), weight(weight), bias(bias),
         output(output), transpose_a(transpose_a), transpose_b(transpose_b) {
@@ -104,9 +104,16 @@ struct GemmEpilogueParams {
       k = input_shape[input_shape.size() - 1];
     }
     if (transpose_b) {
+      ASSERT_CHECK(weight_shape[weight_shape.size() - 1] == k);
       n = weight_shape[weight_shape.size() - 2];
     } else {
+      ASSERT_CHECK(weight_shape[weight_shape.size() - 2] == k);
       n = weight_shape[weight_shape.size() - 1];
+    }
+
+    if (bias) {
+      ASSERT_CHECK(bias_shape.size() >= 1U);
+      ASSERT_CHECK(bias_shape[bias_shape.size() - 1] == n);
     }
 
 #if AP_ENABLE_DEBUG
@@ -123,13 +130,15 @@ struct GemmEpilogueParams {
     shape_args.batch_stride_B = (weight_shape.size() == 2) ? 0 : n * k;
     shape_args.batch_stride_D = m * n;
 
-    /// Only available in RRR format
-    shape_args.batch_stride_C = (!bias || is_C_bias) ? 0 : m * n;
-
     shape_args.lda = transpose_a ? m : k;
     shape_args.ldb = transpose_b ? k : n;
-    shape_args.ldc_bias = (!bias || is_C_bias) ? 0 : n;
     shape_args.ldd = n;
+
+    bool is_C_bias = bias_shape.size() == 1UL;
+
+    /// Only available in RRR format
+    shape_args.batch_stride_C = (!bias || is_C_bias) ? 0 : m * n;
+    shape_args.ldc_bias = (!bias || is_C_bias) ? 0 : n;
   }
 };
 
@@ -144,10 +153,11 @@ struct GemmBroadcastEpilogueParams : GemmEpilogueParams {
                               void *output,
                               const std::vector<int64_t> &input_shape,
                               const std::vector<int64_t> &weight_shape,
+                              const std::vector<int64_t> &bias_shape,
                               bool need_broadcast, bool transpose_a = false,
                               bool transpose_b = false)
       : GemmEpilogueParams(stream, input, weight, bias, output, input_shape,
-                           weight_shape, transpose_a, transpose_b),
+                           weight_shape, bias_shape, transpose_a, transpose_b),
         need_broadcast(need_broadcast), broadcast(broadcast),
         broadcast_out(broadcast_out) {}
 };

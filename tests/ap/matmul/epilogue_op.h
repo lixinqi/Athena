@@ -39,10 +39,11 @@ template <typename T> struct VariadicEpilogueFunctor {
 
   __forceinline__ __host__ __device__ T
   operator()(T x, const Arguments &args, const MatrixCoord &coord) const {
-    int64_t offset = coord.batch * args.in0_shape[1] * args.in0_shape[2] +
-                     coord.row * args.in0_shape[2] + coord.column;
-    T y = static_cast<T>(args.in0_ptr[offset]);
-    return x + y;
+    // int64_t offset = coord.batch * args.in0_shape[1] * args.in0_shape[2] +
+    //                  coord.row * args.in0_shape[2] + coord.column;
+    // int64_t offset = coord.column;
+    // T y = static_cast<T>(args.in0_ptr[offset]);
+    return x; // + y;
   }
 };
 
