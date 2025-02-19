@@ -17,23 +17,34 @@ static void RunMatmulAddBinaryKernel(const GemmEpilogueParams &params) {
 #endif
 
   typename VariadicEpilogueFunctor<ElementComputeT>::Arguments variadic_args;
-  // variadic_args.in0_shape[0] = params.batch_count;
-  // variadic_args.in0_shape[1] = params.m;
-  // variadic_args.in0_shape[2] = params.n;
-  // variadic_args.in0_ptr = reinterpret_cast<const ElementT *>(params.bias);
+  if (params.epilogue_in_ptrs.size() > 0U) {
+    std::vector<int64_t> epilogue_in0_shape = params.epilogue_in_shapes[0];
+    size_t begin = 3 - epilogue_in0_shape.size();
+    for (size_t i = 0; i < begin; ++i) {
+      variadic_args.in0_shape[i] = 1;
+    }
+    for (size_t i = 0; i < epilogue_in0_shape.size(); ++i) {
+      variadic_args.in0_shape[begin + i] = epilogue_in0_shape[i];
+    }
+    variadic_args.in0_ptr =
+        reinterpret_cast<const ElementT *>(params.epilogue_in_ptrs[0]);
+  }
 
   CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
                            TuningConfigId>(params, variadic_args);
 }
 
-void MatmulAddBinaryKernel(cudaStream_t *stream, const void *input,
-                           const void *weight, const void *bias,
-                           const void *another, void *output,
-                           const std::vector<int64_t> &input_shape,
-                           const std::vector<int64_t> &weight_shape,
-                           const std::vector<int64_t> &bias_shape) {
+void MatmulAddBinaryKernel(
+    cudaStream_t *stream, const void *input, const void *weight,
+    const void *bias, void *output,
+    const std::vector<const void *> &epilogue_ins,
+    const std::vector<int64_t> &input_shape,
+    const std::vector<int64_t> &weight_shape,
+    const std::vector<int64_t> &bias_shape,
+    const std::vector<std::vector<int64_t>> &epilogue_shapes) {
   GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
                             weight_shape, bias_shape);
+  params.SetEpilogues(epilogue_ins, epilogue_shapes);
 
 #if AP_ENABLE_AUTO_TUNING
   static int selected_config_id = -1;

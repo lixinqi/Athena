@@ -79,6 +79,9 @@ struct GemmEpilogueParams {
 
   cudaStream_t stream;
 
+  std::vector<const void *> epilogue_in_ptrs;
+  std::vector<std::vector<int64_t>> epilogue_in_shapes;
+
   GemmEpilogueParams() {}
   GemmEpilogueParams(cudaStream_t stream, const void *input, const void *weight,
                      const void *bias, void *output,
@@ -139,6 +142,13 @@ struct GemmEpilogueParams {
     /// Only available in RRR format
     shape_args.batch_stride_C = (!bias || is_C_bias) ? 0 : m * n;
     shape_args.ldc_bias = (!bias || is_C_bias) ? 0 : n;
+  }
+
+  void SetEpilogues(const std::vector<const void *> &in_ptrs,
+                    const std::vector<std::vector<int64_t>> &in_shapes) {
+    ASSERT_CHECK(in_ptrs.size() == in_shapes.size());
+    epilogue_in_ptrs = in_ptrs;
+    epilogue_in_shapes = in_shapes;
   }
 };
 

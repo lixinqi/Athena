@@ -5,7 +5,7 @@
 
 template <typename T>
 void TestMatmulAddBinary(cudaStream_t stream, int batch_count, int m, int n,
-                         int k, bool add_bias) {
+                         int k, bool add_bias, bool has_epilogue) {
   bool transpose_b = false;
 
   std::vector<int64_t> input_shape{batch_count, m, k};
@@ -28,14 +28,23 @@ void TestMatmulAddBinary(cudaStream_t stream, int batch_count, int m, int n,
     bias = AllocateAndInit<T>(stream, bias_shape, false, 0., bias_ref);
   }
 
-  std::vector<float> another_ref;
-  another_ref.resize(Product(input_shape));
-  for (size_t i = 0; i < batch_count * m; ++i) {
-    for (size_t j = 0; j < n; ++j) {
-      another_ref[i * n + j] = static_cast<float>(10000 * (i % 5));
+  std::vector<const void *> epilogue_ins;
+  std::vector<std::vector<int64_t>> epilogue_shapes;
+
+  T *another = nullptr;
+  if (has_epilogue) {
+    std::vector<float> another_ref;
+    another_ref.resize(Product(output_shape));
+    for (size_t i = 0; i < batch_count * m; ++i) {
+      for (size_t j = 0; j < n; ++j) {
+        another_ref[i * n + j] = static_cast<float>(10000 * (i % 5));
+      }
     }
+    another = AllocateAndInit<T>(stream, output_shape, false, 0., another_ref);
+
+    epilogue_ins = {another};
+    epilogue_shapes = {output_shape};
   }
-  T *another = AllocateAndInit<T>(stream, output_shape, false, 0., another_ref);
 
   T *output = AllocateAndInit<T>(stream, output_shape, false, 0.);
   CHECK_CUDA(cudaStreamSynchronize(stream));
@@ -43,9 +52,9 @@ void TestMatmulAddBinary(cudaStream_t stream, int batch_count, int m, int n,
   CHECK_CUDA(
       cudaMemsetAsync(output, 0, sizeof(T) * Product(output_shape), stream));
 
-  KERNEL_PROFILE(ap::MatmulAddBinaryKernel(&stream, input, weight, bias,
-                                           another, output, input_shape,
-                                           weight_shape, bias_shape));
+  KERNEL_PROFILE(ap::MatmulAddBinaryKernel(
+      &stream, input, weight, bias, output, epilogue_ins, input_shape,
+      weight_shape, bias_shape, epilogue_shapes));
 
   Print<T>(stream, reinterpret_cast<T *>(output), batch_count, m, n);
 
@@ -63,14 +72,15 @@ int main(int argc, const char *argv[]) {
   cudaStream_t stream;
   CHECK_CUDA(cudaStreamCreate(&stream));
 
-  bool add_bias = true;
+  bool add_bias = false;
+  bool has_epilogue = true;
 
 #if AP_USE_FLOAT16
   TestMatmulAddBinary<half>(stream, args.batch_count, args.m, args.n, args.k,
-                            add_bias);
+                            add_bias, has_epilogue);
 #else
   TestMatmulAddBinary<float>(stream, args.batch_count, args.m, args.n, args.k,
-                             add_bias);
+                             add_bias, has_epilogue);
 #endif
 
   CHECK_CUDA(cudaStreamDestroy(stream));
