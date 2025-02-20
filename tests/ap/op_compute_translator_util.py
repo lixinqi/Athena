@@ -20,7 +20,7 @@ class ApOpLoadFromRegisterCodeGen:
   def get_out_cg_val(self, i):
     register_var_name_attr = self.op_property.attributes.register_var_name
     register_var_name = register_var_name_attr.match(a_str=lambda x:x)
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       register_var_name
     )
@@ -55,7 +55,7 @@ class ApOpLoadFromGlobalCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -102,7 +102,7 @@ class PdOpDataCodeGen:
 
   def get_out_cg_val(self, i):
     name = self.op_property.attributes.name.match(a_str=lambda x:x)
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       name
     )
@@ -128,7 +128,7 @@ class PdOpFullCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -163,7 +163,7 @@ class PdOpCastCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -188,7 +188,7 @@ class PdOpExpCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -213,7 +213,7 @@ class PdOpReluCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -233,21 +233,32 @@ class CinnOpScaleCodeGen:
     self.index_program_translator_map = index_program_translator_map
 
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
-    scale = self.op_property.attributes.scale.match(a_f32=lambda x:x)
-    bias = self.op_property.attributes.bias.match(a_f32=lambda x:x)
+    scale_value = self.op_property.attributes.scale.match(a_f32=lambda x:x)
+    scale_var_name = f"op{self.op_property.op_index}_scale" 
+    scale = self.get_tmp_cg_val(scale_var_name)
+    mut_lir_code_gen_ctx.let(scale, f"{scale_value}")
+
+    bias_value = self.op_property.attributes.bias.match(a_f32=lambda x:x)
+    bias_var_name = f"op{self.op_property.op_index}_bias" 
+    bias = self.get_tmp_cg_val(bias_var_name)
+    mut_lir_code_gen_ctx.let(bias, f"{bias_value}")
+
     bias_after_scale = self.op_property.attributes.bias_after_scale.match(a_bool=lambda x:x)
     in_name = inputs[0].var_name
-    true_str = f"{scale} * {in_name} + {bias}"
-    false_str = f"{scale} * ({in_name} + {bias})"
+    true_str = f"{scale_var_name} * {in_name} + {bias_var_name}"
+    false_str = f"{scale_var_name} * ({in_name} + {bias_var_name})"
     out = self.get_out_cg_val(0)
     mut_lir_code_gen_ctx.let(out, true_str if bias_after_scale else false_str)
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
+
+  def get_tmp_cg_val(self, name):
+    return code_gen_value_util.AttrCodeGenValue(DataType.float, f"{name}")
 
 
 class PdOpSubstractCodeGen:
@@ -271,7 +282,7 @@ class PdOpSubstractCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -298,7 +309,7 @@ class PdOpAddCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -325,7 +336,7 @@ class PdOpMultiplyCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -352,7 +363,7 @@ class PdOpDivideCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -379,7 +390,7 @@ class PdOpMaximumCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -436,7 +447,7 @@ class CinnOpGenerateShapeCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
