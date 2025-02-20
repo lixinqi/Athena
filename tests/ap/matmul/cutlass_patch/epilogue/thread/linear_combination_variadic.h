@@ -180,19 +180,13 @@ public:
     if constexpr (GenericVariadicTraits<
                       VariadicOp<ElementCompute>>::IsArgumentsNeeded) {
       if (!skip_elementwise_) {
-        CUTLASS_PRAGMA_UNROLL
-        for (int i = 0; i < kElementsPerAccess; ++i) {
-          intermediate[i] = variadic_op(
-              intermediate[i], params_.variadic_args,
-              BatchedMatrixCoord(blockIdx.z, row_offset, column_offset + i));
-        }
+        intermediate = variadic_op.Compute<kElementsPerAccess>(
+            intermediate, params_.variadic_args,
+            BatchedMatrixCoord(blockIdx.z, row_offset, column_offset));
       }
     } else {
       if (!skip_elementwise_) {
-        CUTLASS_PRAGMA_UNROLL
-        for (int i = 0; i < kElementsPerAccess; ++i) {
-          intermediate[i] = variadic_op(intermediate[i]);
-        }
+        intermediate = variadic_op.Compute<kElementsPerAccess>(intermediate);
       }
     }
 
@@ -235,19 +229,13 @@ public:
     if constexpr (GenericVariadicTraits<
                       VariadicOp<FragmentCompute>>::IsArgumentsNeeded) {
       if (!skip_elementwise_) {
-        CUTLASS_PRAGMA_UNROLL
-        for (int i = 0; i < kElementsPerAccess; ++i) {
-          intermediate[i] = variadic_op(
-              intermediate[i], params_.variadic_args,
-              BatchedMatrixCoord(blockIdx.z, row_offset, column_offset + i));
-        }
+        intermediate = variadic_op.Compute<kElementsPerAccess>(
+            intermediate, params_.variadic_args,
+            BatchedMatrixCoord(blockIdx.z, row_offset, column_offset));
       }
     } else {
       if (!skip_elementwise_) {
-        CUTLASS_PRAGMA_UNROLL
-        for (int i = 0; i < kElementsPerAccess; ++i) {
-          intermediate[i] = variadic_op(intermediate[i]);
-        }
+        intermediate = variadic_op.Compute<kElementsPerAccess>(intermediate);
       }
     }
 

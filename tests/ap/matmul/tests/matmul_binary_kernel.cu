@@ -20,11 +20,17 @@ static void RunMatmulAddBinaryKernel(const GemmEpilogueParams &params) {
   if (params.epilogue_in_ptrs.size() > 0U) {
     std::vector<int64_t> epilogue_in0_shape = params.epilogue_in_shapes[0];
     size_t begin = 3 - epilogue_in0_shape.size();
+    int64_t stride = 1;
+    for (int i = epilogue_in0_shape.size() - 1; i >= 0; --i) {
+      variadic_args.in0_shape[begin + i] = epilogue_in0_shape[i];
+      variadic_args.in0_strides[begin + i] = stride;
+      // std::cout << "stride[" << begin + i << "]=" << stride << std::endl;
+      stride *= epilogue_in0_shape[i];
+    }
     for (size_t i = 0; i < begin; ++i) {
       variadic_args.in0_shape[i] = 1;
-    }
-    for (size_t i = 0; i < epilogue_in0_shape.size(); ++i) {
-      variadic_args.in0_shape[begin + i] = epilogue_in0_shape[i];
+      variadic_args.in0_strides[i] = stride;
+      // std::cout << "stride[" << i << "]=" << stride << std::endl;
     }
     variadic_args.in0_ptr =
         reinterpret_cast<const ElementT *>(params.epilogue_in_ptrs[0]);
@@ -49,7 +55,7 @@ void MatmulAddBinaryKernel(
 #if AP_ENABLE_AUTO_TUNING
   static int selected_config_id = -1;
 
-  std::vector<std::function<void(const GemmEpilogueParams &)>>
+  static std::vector<std::function<void(const GemmEpilogueParams &)>>
       matmul_functions = {
           RunMatmulAddBinaryKernel<0>,  RunMatmulAddBinaryKernel<1>,
           RunMatmulAddBinaryKernel<2>,  RunMatmulAddBinaryKernel<3>,

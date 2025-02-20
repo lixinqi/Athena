@@ -33,17 +33,17 @@ void TestMatmulAddBinary(cudaStream_t stream, int batch_count, int m, int n,
 
   T *another = nullptr;
   if (has_epilogue) {
+    // std::vector<int64_t> another_shape = output_shape;
+    std::vector<int64_t> another_shape = {n};
     std::vector<float> another_ref;
-    another_ref.resize(Product(output_shape));
-    for (size_t i = 0; i < batch_count * m; ++i) {
-      for (size_t j = 0; j < n; ++j) {
-        another_ref[i * n + j] = static_cast<float>(10000 * (i % 5));
-      }
+    another_ref.resize(Product(another_shape));
+    for (size_t i = 0; i < another_ref.size(); ++i) {
+      another_ref[i] = static_cast<float>(10000 * (i % 5));
     }
-    another = AllocateAndInit<T>(stream, output_shape, false, 0., another_ref);
+    another = AllocateAndInit<T>(stream, another_shape, false, 0., another_ref);
 
     epilogue_ins = {another};
-    epilogue_shapes = {output_shape};
+    epilogue_shapes = {another_shape};
   }
 
   T *output = AllocateAndInit<T>(stream, output_shape, false, 0.);

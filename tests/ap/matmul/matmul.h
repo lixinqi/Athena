@@ -47,6 +47,8 @@
 
 namespace ap {
 
+template <typename T, int N> using Array = cutlass::Array<T, N>;
+
 using MatrixCoord = cutlass::BatchedMatrixCoord;
 
 struct GemmEpilogueParams {
