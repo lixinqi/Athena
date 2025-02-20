@@ -10,7 +10,7 @@ def get_anchor_iter_var_names():
     return ["coord.batch", "coord.row", "coord.column"]
 
 
-class MatmulBinaryTemplate:
+class MatmulVariadicTemplate:
     def __init__(
         self,
         program_translator,
@@ -69,7 +69,7 @@ class MatmulBinaryTemplate:
             mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
         )
         trivial_code_str = mut_lir_code_gen_ctx.get_stmts_joined_str(indent="    ")
-        print("-- matmul_binary_epilogue_code:\n", trivial_code_str)
+        print("-- matmul_variadic_epilogue_code:\n", trivial_code_str)
         project_module = self.make_project(
             trivial_code_str,
             input0_karg,
@@ -208,7 +208,7 @@ struct VariadicEpilogueFunctor {
 
 extern "C" {
 
-void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
+void MatmulVariadicKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
   std::vector<int64_t> $input0_shape;
   AP_INPUT0_SHAPE_INIT
 
@@ -273,28 +273,28 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
         )
         compile_cmd = (
             compile_cmd
-            + " --shared matmul_binary_kernel.cu -o libmatmul_binary_kernel.so"
+            + " --shared matmul_variadic_kernel.cu -o libmatmul_variadic_kernel.so"
         )
 
         return CodeModule(
             FuncDeclare(
                 DataType.void,
-                "MatmulBinaryKernel",
+                "MatmulVariadicKernel",
                 [PointerType.void_ptr, *self.get_kernel_arg_types()],
             ),
             Project(
                 nested_files=Project.Directory(
-                    ["matmul_binary_kernel.cu", Project.FileContent(code)],
+                    ["matmul_variadic_kernel.cu", Project.FileContent(code)],
                     ["make.sh", Project.FileContent(compile_cmd)],
                 ),
                 compile_cmd="sh make.sh",
-                so_relative_path="libmatmul_binary_kernel.so",
+                so_relative_path="libmatmul_variadic_kernel.so",
             ),
         )
 
 
 def KernelDispatch(ctx):
-    so_func = ctx.get_so_function("MatmulBinaryKernel")
+    so_func = ctx.get_so_function("MatmulVariadicKernel")
     stream_ptr = ctx.device_ctx.get_stream_addr_as_void_ptr()
     getters = ctx.kernel_dispatch_const_data.kernel_args_getters
     args = [stream_ptr, *map(lambda getter: getter(ctx), getters)]
