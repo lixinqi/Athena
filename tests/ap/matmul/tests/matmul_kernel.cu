@@ -33,23 +33,11 @@ void MatmulKernel(cudaStream_t *stream, const void *input, const void *weight,
                             false, transpose_b);
 
 #if AP_ENABLE_AUTO_TUNING
-  static int selected_config_id = -1;
-
-  std::vector<std::function<void(const GemmEpilogueParams &)>>
-      matmul_functions = {
-          RunMatmulKernel<0>,  RunMatmulKernel<1>,  RunMatmulKernel<2>,
-          RunMatmulKernel<3>,  RunMatmulKernel<4>,  RunMatmulKernel<5>,
-          RunMatmulKernel<6>,  RunMatmulKernel<7>,  RunMatmulKernel<8>,
-          RunMatmulKernel<9>,  RunMatmulKernel<10>, RunMatmulKernel<11>,
-          RunMatmulKernel<12>, RunMatmulKernel<13>, RunMatmulKernel<14>,
-          RunMatmulKernel<15>, RunMatmulKernel<16>, RunMatmulKernel<17>,
-          RunMatmulKernel<18>, RunMatmulKernel<19>, RunMatmulKernel<20>,
-          RunMatmulKernel<21>, RunMatmulKernel<22>, RunMatmulKernel<23>,
-          RunMatmulKernel<24>, RunMatmulKernel<25>};
-  if (selected_config_id == -1) {
-    selected_config_id = ProfileBestConfig(matmul_functions, params);
-  }
-  matmul_functions[selected_config_id](params);
+#if AP_USE_FLOAT16
+  AP_AUTOTUNE_FP16(RunMatmulKernel);
+#else
+  AP_AUTOTUNE_FP32(RunMatmulKernel);
+#endif
 #else
   RunMatmulKernel<DefaultConfig::kConfigId>(params);
 #endif

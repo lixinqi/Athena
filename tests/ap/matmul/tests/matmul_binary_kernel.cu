@@ -53,27 +53,11 @@ void MatmulAddBinaryKernel(
   params.SetEpilogues(epilogue_ins, epilogue_shapes);
 
 #if AP_ENABLE_AUTO_TUNING
-  static int selected_config_id = -1;
-
-  static std::vector<std::function<void(const GemmEpilogueParams &)>>
-      matmul_functions = {
-          RunMatmulAddBinaryKernel<0>,  RunMatmulAddBinaryKernel<1>,
-          RunMatmulAddBinaryKernel<2>,  RunMatmulAddBinaryKernel<3>,
-          RunMatmulAddBinaryKernel<4>,  RunMatmulAddBinaryKernel<5>,
-          RunMatmulAddBinaryKernel<6>,  RunMatmulAddBinaryKernel<7>,
-          RunMatmulAddBinaryKernel<8>,  RunMatmulAddBinaryKernel<9>,
-          RunMatmulAddBinaryKernel<10>, RunMatmulAddBinaryKernel<11>,
-          RunMatmulAddBinaryKernel<12>, RunMatmulAddBinaryKernel<13>,
-          RunMatmulAddBinaryKernel<14>, RunMatmulAddBinaryKernel<15>,
-          RunMatmulAddBinaryKernel<16>, RunMatmulAddBinaryKernel<17>,
-          RunMatmulAddBinaryKernel<18>, RunMatmulAddBinaryKernel<19>,
-          RunMatmulAddBinaryKernel<20>, RunMatmulAddBinaryKernel<21>,
-          RunMatmulAddBinaryKernel<22>, RunMatmulAddBinaryKernel<23>,
-          RunMatmulAddBinaryKernel<24>, RunMatmulAddBinaryKernel<25>};
-  if (selected_config_id == -1) {
-    selected_config_id = ProfileBestConfig(matmul_functions, params);
-  }
-  matmul_functions[selected_config_id](params);
+#if AP_USE_FLOAT16
+  AP_AUTOTUNE_FP16(RunMatmulAddBinaryKernel);
+#else
+  AP_AUTOTUNE_FP32(RunMatmulAddBinaryKernel);
+#endif
 #else
   RunMatmulAddBinaryKernel<DefaultConfig::kConfigId>(params);
 #endif
