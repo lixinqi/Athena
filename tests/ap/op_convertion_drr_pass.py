@@ -17,6 +17,57 @@ class PdOpCastAccessTopoPass(access_topo_drr.DrrPass):
       [t.output]
     )
 
+@access_topo_drr.register_drr_pass("pd_op_tanh", tag="default")
+class PdOpTanhAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.exp_op = o.ap_native_op("pd_op.tanh")
+    o.exp_op(
+      [t.input],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.fustion_op = o.ap_native_op("pd_op.relu")
+    o.fustion_op(
+      [t.input],
+      [t.output]
+    )
+
+@access_topo_drr.register_drr_pass("pd_op_erf", tag="default")
+class PdOpErfAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.exp_op = o.ap_native_op("pd_op.erf")
+    o.exp_op(
+      [t.input],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.fustion_op = o.ap_native_op("pd_op.relu")
+    o.fustion_op(
+      [t.input],
+      [t.output]
+    )
+
+@access_topo_drr.register_drr_pass("pd_op_elementwise_pow", tag="default")
+class PdOpElementwisePowAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.source_op = o.ap_native_op("pd_op.elementwise_pow")
+    o.source_op(
+      [t.input0, t.input1],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.result_op = o.ap_native_op("pd_op.add")
+    o.result_op(
+      [t.input0, t.input1],
+      [t.output]
+    )
+
 @access_topo_drr.register_drr_pass("pd_op_exp", tag="default")
 class PdOpExpAccessTopoPass(access_topo_drr.DrrPass):
 
@@ -115,6 +166,23 @@ class PdOpDivideAccessTopoPass(access_topo_drr.DrrPass):
   def result_pattern(self, o, t):
     o.result_op = o.ap_native_op("pd_op.add")
     o.result_op(
+      [t.input0, t.input1],
+      [t.output]
+    )
+
+@access_topo_drr.register_drr_pass("pd_op_multiply", tag="default")
+class PdOpMultiplyAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.source_op = o.ap_native_op("pd_op.multiply")
+    o.source_op(
+      [t.input0, t.input1],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.fustion_op = o.ap_native_op("pd_op.add")
+    o.fustion_op(
       [t.input0, t.input1],
       [t.output]
     )
