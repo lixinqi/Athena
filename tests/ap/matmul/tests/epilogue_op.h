@@ -38,16 +38,45 @@ template <typename T> struct VariadicEpilogueFunctor {
 #endif
   };
 
+  // __forceinline__ __host__ __device__ int64_t
+  // Load(const Arguments &args, const MatrixCoord &coord) const {
+  //   int64_t offset = coord.batch * args.in0_shape[1] * args.in0_shape[2] +
+  //                    coord.row * args.in0_shape[2] + coord.column;
+  //   return offset;
+  // }
+
+  // __forceinline__ __host__ __device__ int64_t
+  // Load(const Arguments &args, const MatrixCoord &coord) const {
+  //   int64_t offset = coord.batch * args.in0_strides[0] +
+  //                    coord.row * args.in0_strides[1] + coord.column;
+  //   return offset;
+  // }
+
+  // __forceinline__ __host__ __device__ int64_t
+  // Load(const Arguments &args, const MatrixCoord &coord) const {
+  //   int64_t offset = coord.batch * 65536 * 32 + coord.row * 32 + coord.column;
+  //   return offset;
+  // }
+
+  __forceinline__ __host__ __device__ int64_t
+  Load(const Arguments &args, const MatrixCoord &coord) const {
+    int64_t offset = coord.column;
+    return offset;
+  }
+
+  __forceinline__ __host__ __device__ T
+  operator()(T x, const Arguments &args, const MatrixCoord &coord) const {
+    int64_t offset = Load(args, coord);
+    T y = static_cast<T>(args.in0_ptr[offset]);
+    T out = x + y;
+    return out;
+  }
+
   template <int N>
   __forceinline__ __host__ __device__ Array<T, N>
   Compute(Array<T, N> x, const Arguments &args,
           const MatrixCoord &coord) const {
-    // int64_t offset = coord.batch * args.in0_shape[1] * args.in0_shape[2] +
-    //                  coord.row * args.in0_shape[2] + coord.column;
-    // int64_t offset = coord.batch * args.in0_strides[0] + coord.row *
-    // args.in0_strides[1] + coord.column; int64_t offset = coord.batch * 65536
-    // * 32 + coord.row * 32 + coord.column;
-    int64_t offset = coord.column;
+    int64_t offset = Load(args, coord);
     Array<half, N> y =
         *reinterpret_cast<const Array<half, N> *>(args.in0_ptr + offset);
     Array<T, N> out;

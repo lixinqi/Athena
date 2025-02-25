@@ -6,13 +6,13 @@ BUILD_DIR   := ${TESTS_DIR}/build
 
 DEBUG     := 0
 TUNING    := 1
-PROFILE   := 1
+PROFILE   := 0
 USE_HALF  := 1
 
 LIB_NAME  := matmul_kernel
 LIB       := ${BUILD_DIR}/lib${LIB_NAME}.so
 TARGET    := ${BUILD_DIR}/test_main
-TARGET_OBJ:= ${BUILD_DIR}/test_main_matmul_binary.o
+TARGET_OBJ:= ${BUILD_DIR}/test_main_matmul_unary.o
 
 # COMPILER OPTIONS
 NVCC      := nvcc
@@ -21,7 +21,7 @@ NVCCFLAGS := -std=c++17 -O3
 NVCCFLAGS += -Xcompiler=-fPIC -arch=sm_80 --expt-relaxed-constexpr
 NVCCFLAGS += -I ${CUTLASS_DIR}/include -I ${CUTLASS_DIR}/tools/util/include
 NVCCFLAGS += -I ${CUDA_ROOT}/include -I ${SOURCE_DIR} -I ${TESTS_DIR}
-NVCCFLAGS += -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1 -DCUTLASS_DEBUG_TRACE_LEVEL=${DEBUG}
+NVCCFLAGS += -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1 -DCUTLASS_DEBUG_TRACE_LEVEL=${DEBUG} -DCUTLASS_EPILOGUE_ENABLE_VECTORIZE=1
 NVCCFLAGS += -DAP_USE_FLOAT16=${USE_HALF} -DAP_ENABLE_DEBUG=${DEBUG} -DAP_ENABLE_PROFILE=${PROFILE} -DAP_ENABLE_AUTO_TUNING=${TUNING}
 
 LDFLAGS   := -L./build -l${LIB_NAME} -lcuda -lcudart
