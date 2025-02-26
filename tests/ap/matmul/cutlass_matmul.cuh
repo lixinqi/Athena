@@ -38,6 +38,42 @@ static void* GetWorkspace(size_t workspace_size) {
   return workspace.get();
 }
 
+template <typename GemmFunc>
+cutlass::Status SetMaxDynamicSharedMemorySize() {
+  cudaError_t cudart_result;
+
+  // If requires more than 48KB: configure for extended, dynamic shared memory
+  if constexpr (GemmFunc::kSharedStorageSize >= (48 << 10)) {
+    cudart_result = cudaFuncSetAttribute(
+      cutlass::Kernel2<typename GemmFunc::GemmKernel>,
+      cudaFuncAttributeMaxDynamicSharedMemorySize,
+      GemmFunc::kSharedStorageSize);
+    if (cudart_result != cudaSuccess) {
+      CUTLASS_TRACE_HOST("cudaFuncSetAttribute() returned error " << cudaGetErrorString(cudart_result));
+      return cutlass::Status::kErrorInternal;
+    }
+  }
+
+#if AP_ENABLE_DEBUG
+  // Update SM occupancy member
+  int sm_occupancy = -1;
+  cudart_result = cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
+    &sm_occupancy,
+    cutlass::Kernel2<typename GemmFunc::GemmKernel>,
+    GemmFunc::GemmKernel::kThreadCount,
+    GemmFunc::kSharedStorageSize,
+    cudaOccupancyDisableCachingOverride);
+  if (cudart_result != cudaSuccess) {
+    CUTLASS_TRACE_HOST("cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags() returned error " << cudaGetErrorString(cudart_result));
+    return cutlass::Status::kErrorInternal;
+  }
+  CUTLASS_TRACE_HOST("sm_occupancy: (" << sm_occupancy_ << ") "
+      "smem_size: (" << GemmFunc::kSharedStorageSize << ") "
+      "GemmKernel::kThreadCount: (" << GemmFunc::GemmKernel::kThreadCount << ")");
+#endif
+  return cutlass::Status::kSuccess;
+}
+
 template <typename ElementT,
           typename ElementComputeT,
           bool TransposeA = false,
@@ -81,6 +117,8 @@ void CutlassMatmul(const GemmEpilogueParams& params) {
       typename GemmOperation<ElementT>::Type            // Operation performed by GEMM
   >;
 
+  CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());
+
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
 
@@ -122,6 +160,9 @@ void CutlassMatmul(const GemmEpilogueParams& params) {
   // Run the GEMM
   //
   CHECK_CUTLASS(device_gemm.run(params.stream));
+#if AP_ENABLE_DEBUG
+  CHECK_CUDA(cudaStreamSynchronize(params.stream));
+#endif
 }
 
 
@@ -173,6 +214,8 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
   >;
 
+  CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());
+
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
 
@@ -215,6 +258,9 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
   // Run the GEMM
   //
   CHECK_CUTLASS(device_gemm.run(params.stream));
+#if AP_ENABLE_DEBUG
+  CHECK_CUDA(cudaStreamSynchronize(params.stream));
+#endif
 }
 
 template <typename ElementT,
@@ -279,6 +325,8 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
   >;
 
+  CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());
+
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
 
@@ -332,6 +380,9 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
   // Run the GEMM
   //
   CHECK_CUTLASS(device_gemm(params.stream));
+#if AP_ENABLE_DEBUG
+  CHECK_CUDA(cudaStreamSynchronize(params.stream));
+#endif
 }
 
 template <typename ElementT,
@@ -377,6 +428,8 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
   >;
 
+  CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());
+
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
 
@@ -419,6 +472,9 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
   // Run the GEMM
   //
   CHECK_CUTLASS(device_gemm(params.stream));
+#if AP_ENABLE_DEBUG
+  CHECK_CUDA(cudaStreamSynchronize(params.stream));
+#endif
 }
 
 }

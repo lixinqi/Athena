@@ -110,8 +110,8 @@ struct GemmEpilogueParams {
     }
 
 #if AP_ENABLE_DEBUG
-    std::cout << "-- [GemmEpilogueParams] m: " << m << ", n: " << n
-              << ", k: " << k << std::endl;
+    std::cout << "-- [GemmEpilogueParams] batch_count: " << batch_count
+              << ", m: " << m << ", n: " << n << ", k: " << k << std::endl;
     std::cout << "-- [GemmEpilogueParams] input: " << input << std::endl;
     std::cout << "-- [GemmEpilogueParams] weight: " << weight << std::endl;
     std::cout << "-- [GemmEpilogueParams] bias: " << bias << std::endl;
