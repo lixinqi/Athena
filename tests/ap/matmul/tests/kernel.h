@@ -15,6 +15,7 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
                           const void *weight, const void *bias, void *output,
                           const std::vector<int64_t> &input_shape,
                           const std::vector<int64_t> &weight_shape,
+                          const std::vector<int64_t> &bias_shape,
                           bool transpose_b);
 
 void MatmulAddBroadcastKernel(cudaStream_t *stream, const void *input,
@@ -23,13 +24,17 @@ void MatmulAddBroadcastKernel(cudaStream_t *stream, const void *input,
                               void *output,
                               const std::vector<int64_t> &input_shape,
                               const std::vector<int64_t> &weight_shape,
+                              const std::vector<int64_t> &bias_shape,
                               bool need_broadcast);
 
-void MatmulAddBinaryKernel(cudaStream_t *stream, const void *input,
-                           const void *weight, const void *bias,
-                           const void *another, void *output,
-                           const std::vector<int64_t> &input_shape,
-                           const std::vector<int64_t> &weight_shape);
+void MatmulAddBinaryKernel(
+    cudaStream_t *stream, const void *input, const void *weight,
+    const void *bias, void *output,
+    const std::vector<const void *> &epilogue_ins,
+    const std::vector<int64_t> &input_shape,
+    const std::vector<int64_t> &weight_shape,
+    const std::vector<int64_t> &bias_shape,
+    const std::vector<std::vector<int64_t>> &epilogue_shapes);
 
 } // namespace ap
 

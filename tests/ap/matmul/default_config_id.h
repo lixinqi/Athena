@@ -5,8 +5,9 @@
 namespace ap {
 
 struct DefaultConfig {
-  static constexpr int kConfigId = 2;
+  static constexpr int kConfigId = 0;
   static constexpr int kSwizzleFactor = 1;
+  static constexpr bool kBatched = false;
 };
 
 } // namespace ap

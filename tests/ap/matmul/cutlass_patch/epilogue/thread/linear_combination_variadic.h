@@ -180,19 +180,29 @@ public:
     if constexpr (GenericVariadicTraits<
                       VariadicOp<ElementCompute>>::IsArgumentsNeeded) {
       if (!skip_elementwise_) {
+#if CUTLASS_EPILOGUE_ENABLE_VECTORIZE
+        intermediate = variadic_op.Compute<kElementsPerAccess>(
+            intermediate, params_.variadic_args,
+            BatchedMatrixCoord(blockIdx.z, row_offset, column_offset));
+#else
         CUTLASS_PRAGMA_UNROLL
         for (int i = 0; i < kElementsPerAccess; ++i) {
           intermediate[i] = variadic_op(
               intermediate[i], params_.variadic_args,
               BatchedMatrixCoord(blockIdx.z, row_offset, column_offset + i));
         }
+#endif
       }
     } else {
       if (!skip_elementwise_) {
+#if CUTLASS_EPILOGUE_ENABLE_VECTORIZE
+        intermediate = variadic_op.Compute<kElementsPerAccess>(intermediate);
+#else
         CUTLASS_PRAGMA_UNROLL
         for (int i = 0; i < kElementsPerAccess; ++i) {
           intermediate[i] = variadic_op(intermediate[i]);
         }
+#endif
       }
     }
 
@@ -235,19 +245,29 @@ public:
     if constexpr (GenericVariadicTraits<
                       VariadicOp<FragmentCompute>>::IsArgumentsNeeded) {
       if (!skip_elementwise_) {
+#if CUTLASS_EPILOGUE_ENABLE_VECTORIZE
+        intermediate = variadic_op.Compute<kElementsPerAccess>(
+            intermediate, params_.variadic_args,
+            BatchedMatrixCoord(blockIdx.z, row_offset, column_offset));
+#else
         CUTLASS_PRAGMA_UNROLL
         for (int i = 0; i < kElementsPerAccess; ++i) {
           intermediate[i] = variadic_op(
               intermediate[i], params_.variadic_args,
               BatchedMatrixCoord(blockIdx.z, row_offset, column_offset + i));
         }
+#endif
       }
     } else {
       if (!skip_elementwise_) {
+#if CUTLASS_EPILOGUE_ENABLE_VECTORIZE
+        intermediate = variadic_op.Compute<kElementsPerAccess>(intermediate);
+#else
         CUTLASS_PRAGMA_UNROLL
         for (int i = 0; i < kElementsPerAccess; ++i) {
           intermediate[i] = variadic_op(intermediate[i]);
         }
+#endif
       }
     }
 
