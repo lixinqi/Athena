@@ -533,3 +533,21 @@ class LeftDownSpiderUpSpiderAccessTopoPass(access_topo_drr.DrrPass):
       [t.input0, t.input1],
       []
     )
+
+@access_topo_drr.register_drr_pass("triangle_left_down_spider_up_spider", tag="default")
+class TriangleLeftDownSpiderUpSpiderAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.expand = o.ap_native_op("ap_op.down_spider")
+    o.expand(
+      [t.input0],
+      [t.output0]
+    )
+    o.up_spider = o.ap_native_op("ap_op.up_spider")
+    o.up_spider(
+      [t.input0, t.output0],
+      []
+    )
+
+  def result_pattern(self, o, t):
+    pass

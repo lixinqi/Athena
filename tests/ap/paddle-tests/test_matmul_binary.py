@@ -29,18 +29,20 @@ def trivial_matrix_binary(x, y, b):
     out = paddle.matmul(x, y)
     return paddle.nn.functional.relu(out + b)
 
+def trivial_matrix_binary_gelu_true(x, y, b):
+    out = paddle.matmul(x, y)
+    return paddle.nn.functional.gelu(out + b, True)
 
 class CINNSubGraphNet(paddle.nn.Layer):
-    def __init__(self):
+    def __init__(self, fn):
         super().__init__()
-        self.fn = trivial_matrix_binary
+        self.fn = fn
 
     def forward(self, x, y, b):
         out = self.fn(x, y, b)
         return out
 
-
-class TestAPMatmulBinary(unittest.TestCase):
+class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
     """
     Test Pir API + @to_static + CINN.
     """
@@ -65,7 +67,7 @@ class TestAPMatmulBinary(unittest.TestCase):
         self.b.stop_gradient = False
 
     def eval_symbolic(self, use_cinn, profile):
-        net = CINNSubGraphNet()
+        net = CINNSubGraphNet(trivial_matrix_binary_gelu_true)
         input_spec = [
             InputSpec(shape=self.x_shape, dtype=self.dtype),
             InputSpec(shape=self.y_shape, dtype=self.dtype),

@@ -218,6 +218,81 @@ class PdOpReluCodeGen:
       f"op{self.op_property.op_index}_out{i}"
     )
 
+class PdOpErfCodeGen:
+  def __init__(self,
+               op_property,
+               input_properties,
+               output_properties,
+               kernel_arg_translator,
+               index_program_translator_map):
+    self.op_property = op_property
+    self.input_properties = input_properties
+    self.output_properties = output_properties
+    self.kernel_arg_translator = kernel_arg_translator
+    self.index_program_translator_map = index_program_translator_map
+
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
+    var_name = inputs[0].var_name
+    out = self.get_out_cg_val(0)
+    mut_lir_code_gen_ctx.let(out, f"erf({var_name})")
+    return [out]
+
+  def get_out_cg_val(self, i):
+    return code_gen_value_util.CodeGenValue(
+      self.output_properties[i].type,
+      f"op{self.op_property.op_index}_out{i}"
+    )
+
+class PdOpElementwisePowCodeGen:
+  def __init__(self,
+               op_property,
+               input_properties,
+               output_properties,
+               kernel_arg_translator,
+               index_program_translator_map):
+    self.op_property = op_property
+    self.input_properties = input_properties
+    self.output_properties = output_properties
+    self.kernel_arg_translator = kernel_arg_translator
+    self.index_program_translator_map = index_program_translator_map
+
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
+    exponent = inputs[1].var_name
+    var_name = inputs[0].var_name
+    out = self.get_out_cg_val(0)
+    mut_lir_code_gen_ctx.let(out, f"pow({var_name},{exponent})")
+    return [out]
+
+  def get_out_cg_val(self, i):
+    return code_gen_value_util.CodeGenValue(
+      self.output_properties[i].type,
+      f"op{self.op_property.op_index}_out{i}"
+    )
+
+class PdOpTanhCodeGen:
+  def __init__(self,
+               op_property,
+               input_properties,
+               output_properties,
+               kernel_arg_translator,
+               index_program_translator_map):
+    self.op_property = op_property
+    self.input_properties = input_properties
+    self.output_properties = output_properties
+    self.kernel_arg_translator = kernel_arg_translator
+    self.index_program_translator_map = index_program_translator_map
+
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
+    var_name = inputs[0].var_name
+    out = self.get_out_cg_val(0)
+    mut_lir_code_gen_ctx.let(out, f"tanh({var_name})")
+    return [out]
+
+  def get_out_cg_val(self, i):
+    return code_gen_value_util.CodeGenValue(
+      self.output_properties[i].type,
+      f"op{self.op_property.op_index}_out{i}"
+    )
 
 class CinnOpScaleCodeGen:
   def __init__(self,
@@ -453,6 +528,9 @@ class OpComputeTranslatorFactory:
       ["pd_op.cast",                PdOpCastCodeGen],
       ["pd_op.exp",                 PdOpExpCodeGen],
       ["pd_op.relu",                PdOpReluCodeGen],
+      ["pd_op.tanh",                PdOpTanhCodeGen],
+      ["pd_op.erf",                 PdOpErfCodeGen],
+      ["pd_op.elementwise_pow",     PdOpElementwisePowCodeGen],
       ["cinn_op.scale",             CinnOpScaleCodeGen],
       ["pd_op.subtract",            PdOpSubstractCodeGen],
       ["pd_op.add",                 PdOpAddCodeGen],

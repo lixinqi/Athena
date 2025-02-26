@@ -50,7 +50,7 @@ def check_result(dtype, out_1, out_2, check_equal=False):
         f"-- max difference     : {np.max(diff)}, {out_1_flatten[max_atol_idx]} vs {out_2_flatten[max_atol_idx]}"
     )
 
-    relative_error = np.abs(diff / out_2_flatten)
+    relative_error = np.abs(diff / (out_2_flatten + 1e-8))
     max_rtol_idx = np.nanargmax(relative_error)
     print(
         f"-- max relative error : {np.nanmax(relative_error)}, {out_1_flatten[max_rtol_idx]} vs {out_2_flatten[max_rtol_idx]}"
