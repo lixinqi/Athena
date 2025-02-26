@@ -18,20 +18,21 @@ from os.path import dirname
 sys.path.append(dirname(__file__))
 
 import unittest
-
 import utils
 
 import paddle
 from paddle.static import InputSpec
 
 
-def trivial_matrix_binary(x, y, b):
+def matmul_add_relu(x, y, b):
     out = paddle.matmul(x, y)
     return paddle.nn.functional.relu(out + b)
 
-def trivial_matrix_binary_gelu_true(x, y, b):
+
+def matmul_add_gelu_true(x, y, b):
     out = paddle.matmul(x, y)
     return paddle.nn.functional.gelu(out + b, True)
+
 
 class CINNSubGraphNet(paddle.nn.Layer):
     def __init__(self, fn):
@@ -42,7 +43,8 @@ class CINNSubGraphNet(paddle.nn.Layer):
         out = self.fn(x, y, b)
         return out
 
-class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
+
+class TestAPMatmulBinary(unittest.TestCase):
     """
     Test Pir API + @to_static + CINN.
     """
@@ -66,8 +68,7 @@ class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
         self.b = paddle.randn(self.b_shape, dtype=self.dtype)
         self.b.stop_gradient = False
 
-    def eval_symbolic(self, use_cinn, profile):
-        net = CINNSubGraphNet(trivial_matrix_binary_gelu_true)
+    def eval_symbolic(self, net, use_cinn, profile):
         input_spec = [
             InputSpec(shape=self.x_shape, dtype=self.dtype),
             InputSpec(shape=self.y_shape, dtype=self.dtype),
@@ -78,12 +79,21 @@ class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
         out = utils.run_with_profile(profile, net, self.x, self.y, self.b)
         return out
 
-    def test_eval_symbolic(self):
+    def test_matmul_add_relu(self):
         profile = False
-        cinn_out = self.eval_symbolic(use_cinn=True, profile=profile)
-        dy_out = self.eval_symbolic(use_cinn=False, profile=profile)
+        net = CINNSubGraphNet(matmul_add_relu)
+        cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
+        dy2st_out = self.eval_symbolic(net, use_cinn=False, profile=profile)
         if not profile:
-            utils.check_result(self.dtype, cinn_out.numpy(), dy_out.numpy())
+            utils.check_result(self.dtype, cinn_out.numpy(), dy2st_out.numpy())
+
+    def test_matmul_add_gelu(self):
+        profile = False
+        net = CINNSubGraphNet(matmul_add_gelu_true)
+        cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
+        dy2st_out = self.eval_symbolic(net, use_cinn=False, profile=profile)
+        if not profile:
+            utils.check_result(self.dtype, cinn_out.numpy(), dy2st_out.numpy())
 
 
 if __name__ == "__main__":

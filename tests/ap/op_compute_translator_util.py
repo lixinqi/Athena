@@ -238,7 +238,7 @@ class PdOpErfCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -260,11 +260,11 @@ class PdOpElementwisePowCodeGen:
     exponent = inputs[1].var_name
     var_name = inputs[0].var_name
     out = self.get_out_cg_val(0)
-    mut_lir_code_gen_ctx.let(out, f"pow({var_name},{exponent})")
+    mut_lir_code_gen_ctx.let(out, f"pow({var_name}, {exponent})")
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
@@ -289,7 +289,7 @@ class PdOpTanhCodeGen:
     return [out]
 
   def get_out_cg_val(self, i):
-    return code_gen_value_util.CodeGenValue(
+    return code_gen_value_util.TensorCodeGenValue(
       self.output_properties[i].type,
       f"op{self.op_property.op_index}_out{i}"
     )
