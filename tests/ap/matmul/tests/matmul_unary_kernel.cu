@@ -1,4 +1,5 @@
 #include "cutlass_matmul.cuh"
+#include "default_config_id.h"
 #include "epilogue_op.h"
 #include "profile.h"
 #include <vector>
@@ -35,42 +36,20 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
                           const void *weight, const void *bias, void *output,
                           const std::vector<int64_t> &input_shape,
                           const std::vector<int64_t> &weight_shape,
+                          const std::vector<int64_t> &bias_shape,
                           bool transpose_b) {
-  static int selected_config_id = -1;
-
   GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
-                            weight_shape, false, transpose_b);
+                            weight_shape, bias_shape, false, transpose_b);
 
-  std::vector<std::function<void(const GemmEpilogueParams &)>>
-      matmul_functions = {
-          RunMatmulAddUnaryKernel<0>,
-          RunMatmulAddUnaryKernel<1>,
-          RunMatmulAddUnaryKernel<2>,
-          RunMatmulAddUnaryKernel<3>,
-          RunMatmulAddUnaryKernel<4>,
-          RunMatmulAddUnaryKernel<5>,
-          RunMatmulAddUnaryKernel<6>,
-          RunMatmulAddUnaryKernel<7>,
-          RunMatmulAddUnaryKernel<8>,
-          RunMatmulAddUnaryKernel<9>,
-          RunMatmulAddUnaryKernel<10>,
-          RunMatmulAddUnaryKernel<11>,
-          RunMatmulAddUnaryKernel<12>,
-          RunMatmulAddUnaryKernel<13>,
-          RunMatmulAddUnaryKernel<14>,
-          RunMatmulAddUnaryKernel<15>,
-          RunMatmulAddUnaryKernel<16>,
-          RunMatmulAddUnaryKernel<17>,
-          RunMatmulAddUnaryKernel<18>,
-          RunMatmulAddUnaryKernel<19>,
-          RunMatmulAddUnaryKernel<20>,
-          RunMatmulAddUnaryKernel<21>,
-          RunMatmulAddUnaryKernel<22>,
-          RunMatmulAddUnaryKernel<23>};
-  if (selected_config_id == -1) {
-    selected_config_id = ProfileBestConfig(matmul_functions, params);
-  }
-  matmul_functions[selected_config_id](params);
+#if AP_ENABLE_AUTO_TUNING
+#if AP_USE_FLOAT16
+  AP_AUTOTUNE_FP16(RunMatmulAddUnaryKernel);
+#else
+  AP_AUTOTUNE_FP32(RunMatmulAddUnaryKernel);
+#endif
+#else
+  RunMatmulAddUnaryKernel<DefaultConfig::kConfigId>(params);
+#endif
 }
 
 } // namespace ap

@@ -25,24 +25,23 @@ import paddle
 from paddle.static import InputSpec
 
 
-def trivial_matrix_binary(x, y, b):
-    out = paddle.matmul(x, y)
-    return paddle.nn.functional.relu(out + b)
-
-def trivial_matrix_binary_gelu_true(x, y, b):
-    out = paddle.matmul(x, y)
-    return paddle.nn.functional.gelu(out + b, True)
-
 class CINNSubGraphNet(paddle.nn.Layer):
-    def __init__(self, fn):
+    def __init__(self, dtype, in_features, intermedia, out_features):
         super().__init__()
-        self.fn = fn
+        self.weight1 = paddle.randn([in_features, intermedia], dtype=dtype)
+        self.bias1 = paddle.randn([intermedia], dtype=dtype)
+        self.weight2 = paddle.randn([intermedia, out_features], dtype=dtype)
+        self.bias2 = paddle.randn([out_features], dtype=dtype)
 
-    def forward(self, x, y, b):
-        out = self.fn(x, y, b)
+    def forward(self, x):
+        out = paddle.matmul(x, self.weight1) + self.bias1
+        out = paddle.nn.functional.relu(out)
+        out = paddle.matmul(out, self.weight2) + self.bias2
+        # out = paddle.nn.functional.relu(out)
         return out
 
-class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
+
+class TestAPMatmulBinary(unittest.TestCase):
     """
     Test Pir API + @to_static + CINN.
     """
@@ -52,38 +51,32 @@ class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
         self.prepare_data()
 
     def prepare_data(self):
-        self.dtype = "float16"
+        self.dtype = "float32"
 
         self.x_shape = [4, 65536, 128]
         self.x = paddle.randn(self.x_shape, dtype=self.dtype)
         self.x.stop_gradient = False
 
-        self.y_shape = [128, 32]
-        self.y = paddle.randn(self.y_shape, dtype=self.dtype)
-        self.y.stop_gradient = False
-
-        self.b_shape = [32]
-        self.b = paddle.randn(self.b_shape, dtype=self.dtype)
-        self.b.stop_gradient = False
-
-    def eval_symbolic(self, use_cinn, profile):
-        net = CINNSubGraphNet(trivial_matrix_binary_gelu_true)
+    def eval_symbolic(self, net, use_cinn, profile):
         input_spec = [
             InputSpec(shape=self.x_shape, dtype=self.dtype),
-            InputSpec(shape=self.y_shape, dtype=self.dtype),
-            InputSpec(shape=self.b_shape, dtype=self.dtype),
         ]
         net = utils.apply_to_static(net, use_cinn, input_spec)
         net.eval()
-        out = utils.run_with_profile(profile, net, self.x, self.y, self.b)
+        out = utils.run_with_profile(profile, net, self.x)
         return out
 
     def test_eval_symbolic(self):
         profile = False
-        cinn_out = self.eval_symbolic(use_cinn=True, profile=profile)
-        dy_out = self.eval_symbolic(use_cinn=False, profile=profile)
+        net = CINNSubGraphNet(
+            self.dtype, in_features=self.x_shape[-1], intermedia=32, out_features=128
+        )
+        cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
+        d2s_out = self.eval_symbolic(net, use_cinn=False, profile=profile)
+        # dy_out = utils.run_with_profile(profile, net, self.x)
         if not profile:
-            utils.check_result(self.dtype, cinn_out.numpy(), dy_out.numpy())
+            utils.check_result(self.dtype, cinn_out.numpy(), d2s_out.numpy())
+            # utils.check_result(self.dtype, d2s_out.numpy(), dy_out.numpy())
 
 
 if __name__ == "__main__":

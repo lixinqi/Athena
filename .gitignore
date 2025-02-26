@@ -11,3 +11,6 @@ tests/ap/reified_drr/
 
 dist/*
 *.egg-info/*
+
+*.json
+.swp

@@ -4,6 +4,7 @@
 #include <iostream>
 #include <map>
 #include <random>
+#include <sstream>
 #include <type_traits>
 #include <vector>
 
@@ -74,10 +75,30 @@ static ProblemSizeArgs ParseArgs(int argc, const char *argv[]) {
   return args;
 }
 
+static int64_t Product(const std::vector<int64_t> &v) {
+  return std::accumulate(v.begin(), v.end(), 1, std::multiplies<int64_t>());
+}
+
+static std::string ToString(const std::vector<int64_t> &v) {
+  if (v.empty()) {
+    return "{}";
+  }
+  std::ostringstream os;
+  os << "{" << v[0];
+  for (size_t i = 1; i < v.size(); ++i) {
+    os << ", " << v[i];
+  }
+  os << "}";
+  return os.str();
+}
+
 template <typename T>
-T *AllocateAndInit(cudaStream_t stream, size_t numel, bool random, T value = 0,
+T *AllocateAndInit(cudaStream_t stream, const std::vector<int64_t> &shape,
+                   bool random, T value = 0,
                    std::vector<float> ref = std::vector<float>{}) {
   T *addr = nullptr;
+
+  size_t numel = static_cast<size_t>(Product(shape));
 
   // Allocate device memory.
   CHECK_CUDA(cudaMalloc(reinterpret_cast<void **>(&addr), numel * sizeof(T)));
@@ -106,12 +127,12 @@ T *AllocateAndInit(cudaStream_t stream, size_t numel, bool random, T value = 0,
 
   if constexpr (std::is_same<T, float>::value) {
     std::cout << "-- [AllocateAndInit] dtype=float, numel=" << numel
-              << std::endl;
+              << ", shape=" << ToString(shape) << std::endl;
     CHECK_CUDA(cudaMemcpyAsync(addr, data.data(), numel * sizeof(T),
                                cudaMemcpyHostToDevice, stream));
   } else if constexpr (std::is_same<T, half>::value) {
     std::cout << "-- [AllocateAndInit] dtype=half, numel=" << numel
-              << std::endl;
+              << ", shape=" << ToString(shape) << std::endl;
     float *tmp_addr = nullptr;
     CHECK_CUDA(cudaMalloc(reinterpret_cast<void **>(&tmp_addr),
                           numel * sizeof(float)));

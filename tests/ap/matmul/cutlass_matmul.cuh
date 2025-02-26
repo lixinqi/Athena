@@ -38,12 +38,49 @@ static void* GetWorkspace(size_t workspace_size) {
   return workspace.get();
 }
 
+template <typename GemmFunc>
+cutlass::Status SetMaxDynamicSharedMemorySize() {
+  cudaError_t cudart_result;
+
+  // If requires more than 48KB: configure for extended, dynamic shared memory
+  if constexpr (GemmFunc::kSharedStorageSize >= (48 << 10)) {
+    cudart_result = cudaFuncSetAttribute(
+      cutlass::Kernel2<typename GemmFunc::GemmKernel>,
+      cudaFuncAttributeMaxDynamicSharedMemorySize,
+      GemmFunc::kSharedStorageSize);
+    if (cudart_result != cudaSuccess) {
+      CUTLASS_TRACE_HOST("cudaFuncSetAttribute() returned error " << cudaGetErrorString(cudart_result));
+      return cutlass::Status::kErrorInternal;
+    }
+  }
+
+#if AP_ENABLE_DEBUG
+  // Update SM occupancy member
+  int sm_occupancy = -1;
+  cudart_result = cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags(
+    &sm_occupancy,
+    cutlass::Kernel2<typename GemmFunc::GemmKernel>,
+    GemmFunc::GemmKernel::kThreadCount,
+    GemmFunc::kSharedStorageSize,
+    cudaOccupancyDisableCachingOverride);
+  if (cudart_result != cudaSuccess) {
+    CUTLASS_TRACE_HOST("cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags() returned error " << cudaGetErrorString(cudart_result));
+    return cutlass::Status::kErrorInternal;
+  }
+  CUTLASS_TRACE_HOST("sm_occupancy: (" << sm_occupancy_ << ") "
+      "smem_size: (" << GemmFunc::kSharedStorageSize << ") "
+      "GemmKernel::kThreadCount: (" << GemmFunc::GemmKernel::kThreadCount << ")");
+#endif
+  return cutlass::Status::kSuccess;
+}
+
 template <typename ElementT,
           typename ElementComputeT,
           bool TransposeA = false,
           bool TransposeB = false,
           int ConfigId = DefaultConfig::kConfigId,
-          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor,
+          bool Batched = DefaultConfig::kBatched>
 void CutlassMatmul(const GemmEpilogueParams& params) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -70,16 +107,18 @@ void CutlassMatmul(const GemmEpilogueParams& params) {
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
-      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type            // Operation performed by GEMM
   >;
+
+  CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
@@ -122,6 +161,9 @@ void CutlassMatmul(const GemmEpilogueParams& params) {
   // Run the GEMM
   //
   CHECK_CUTLASS(device_gemm.run(params.stream));
+#if AP_ENABLE_DEBUG
+  CHECK_CUDA(cudaStreamSynchronize(params.stream));
+#endif
 }
 
 
@@ -131,7 +173,8 @@ template <typename ElementT,
           bool TransposeA = false,
           bool TransposeB = false,
           int ConfigId = DefaultConfig::kConfigId,
-          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor,
+          bool Batched = DefaultConfig::kBatched>
 void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename UnaryFunctor<ElementComputeT>::Arguments& unary_args) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -162,16 +205,18 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
-      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
   >;
+
+  CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
@@ -215,12 +260,16 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
   // Run the GEMM
   //
   CHECK_CUTLASS(device_gemm.run(params.stream));
+#if AP_ENABLE_DEBUG
+  CHECK_CUDA(cudaStreamSynchronize(params.stream));
+#endif
 }
 
 template <typename ElementT,
           typename ElementComputeT,
           int ConfigId = DefaultConfig::kConfigId,
-          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor,
+          bool Batched = DefaultConfig::kBatched>
 void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -268,16 +317,18 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
-      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
   >;
+
+  CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
@@ -332,13 +383,17 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
   // Run the GEMM
   //
   CHECK_CUTLASS(device_gemm(params.stream));
+#if AP_ENABLE_DEBUG
+  CHECK_CUDA(cudaStreamSynchronize(params.stream));
+#endif
 }
 
 template <typename ElementT,
           typename ElementComputeT,
           template<typename T> class VariadicFunctor,
           int ConfigId = DefaultConfig::kConfigId,
-          int SwizzleFactor = DefaultConfig::kSwizzleFactor>
+          int SwizzleFactor = DefaultConfig::kSwizzleFactor,
+          bool Batched = DefaultConfig::kBatched>
 void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename VariadicFunctor<ElementComputeT>::Arguments& variadic_args) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -366,16 +421,18 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::TShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::WShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::IShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::SwizzleThreadBlock,
-      GemmTuningConfigs<ElementT, SwizzleFactor, ConfigId>::kNumStages,
+      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
+      GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
   >;
+
+  CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());
 
   /// Arguments
   cutlass::gemm::GemmCoord problem_size{params.m, params.n, params.k};
@@ -419,6 +476,9 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
   // Run the GEMM
   //
   CHECK_CUTLASS(device_gemm(params.stream));
+#if AP_ENABLE_DEBUG
+  CHECK_CUDA(cudaStreamSynchronize(params.stream));
+#endif
 }
 
 }
