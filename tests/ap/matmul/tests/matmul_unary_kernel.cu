@@ -41,11 +41,11 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
   GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
                             weight_shape, bias_shape, false, transpose_b);
 
-#if AP_ENABLE_AUTO_TUNING
+#if AP_ENABLE_AUTOTUNE
 #if AP_USE_FLOAT16
-  AP_AUTOTUNE_FP16(RunMatmulAddUnaryKernel);
+  AP_AUTOTUNE_half(RunMatmulAddUnaryKernel);
 #else
-  AP_AUTOTUNE_FP32(RunMatmulAddUnaryKernel);
+  AP_AUTOTUNE_float(RunMatmulAddUnaryKernel);
 #endif
 #else
   RunMatmulAddUnaryKernel<DefaultConfig::kConfigId>(params);

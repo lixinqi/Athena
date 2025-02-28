@@ -50,13 +50,13 @@ void MatmulAddBinaryKernel(
     const std::vector<std::vector<int64_t>> &epilogue_shapes) {
   GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
                             weight_shape, bias_shape);
-  params.SetEpilogues(epilogue_ins, epilogue_shapes);
+  params.SetEpilogueAndShapes(epilogue_ins, epilogue_shapes);
 
-#if AP_ENABLE_AUTO_TUNING
+#if AP_ENABLE_AUTOTUNE
 #if AP_USE_FLOAT16
-  AP_AUTOTUNE_FP16(RunMatmulAddBinaryKernel);
+  AP_AUTOTUNE_half(RunMatmulAddBinaryKernel);
 #else
-  AP_AUTOTUNE_FP32(RunMatmulAddBinaryKernel);
+  AP_AUTOTUNE_float(RunMatmulAddBinaryKernel);
 #endif
 #else
   RunMatmulAddBinaryKernel<DefaultConfig::kConfigId>(params);
