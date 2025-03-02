@@ -6,7 +6,10 @@ TEST_FILENAME=${1:-"test_trivial_reduce"}
 TEST_TPL_FILENAME=`echo ${TEST_FILENAME/test_/}`
 
 echo "-- Write 'import ${TEST_FILENAME}' to __main__.py"
-echo "import ${TEST_FILENAME}" > __main__.py
+echo "-- Write 'import test_matmul_binary' to __main__.py"
+echo "import test_matmul_binary" > __main__.py
+echo "import test_matmul_ternary" >> __main__.py
+# echo "import ${TEST_FILENAME}" >> __main__.py
 
 
 FILENAMES_ARRAY=(
@@ -26,8 +29,10 @@ FILENAMES_ARRAY=(
     "access_topo_drr"
     "abstract_drr"
     "ap_tpl_codegen"
+	"matmul_binary_tpl"
+    "test_matmul_binary"
+    "test_matmul_ternary"
     "${TEST_FILENAME}"
-    "${TEST_TPL_FILENAME}_tpl"
 )
 for filename in "${FILENAMES_ARRAY[@]}"
 do
