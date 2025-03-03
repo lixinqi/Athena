@@ -29,7 +29,7 @@ FILENAMES_ARRAY=(
     "access_topo_drr"
     "abstract_drr"
     "ap_tpl_codegen"
-	"matmul_binary_tpl"
+    "matmul_binary_tpl"
     "test_matmul_binary"
     "test_matmul_ternary"
     "${TEST_FILENAME}"
