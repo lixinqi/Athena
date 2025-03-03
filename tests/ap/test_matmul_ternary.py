@@ -210,15 +210,6 @@ class MatmulTernaryFusion(abstract_drr.DrrPass):
     pass_manager.run(program)
     print("after-apply-access_topo_pass", program)
     pass_manager = ir_tools.create_pass_manager()
-    # remove_data_op_pair_pass = RemoveDataOpPairPass(
-    #   src_data_op_name="mm_out",
-    #   dst_data_op_name="input2"
-    # )
-    # pass_manager.add_pass(ir_tools.create_access_topo_drr_one_step_pass(
-    #   remove_data_op_pair_pass
-    # ))
-    # pass_manager.run(program)
-    # print("after-apply-RemoveDataOpPairPass_pass", program)
     
     remove_data_op2sum_op2data_op_pass = RemoveDataOp2SumOp2DataOpPass(
       src_data_op_name="mm_out",
