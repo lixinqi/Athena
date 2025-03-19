@@ -93,41 +93,39 @@ class ApOpStoreToRegisterCodeGen:
             ["half*", "half"],
         ]
     )
+    self.local_to_glb_out = OrderedDict(
+      map(lambda i: [f"out{i+1}", f"args.out_ptr_{i}"], range(20))
+    )
 
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     mut_lir_code_gen_ctx.stmts.append(f"{self.get_out_var_name()} = {inputs[0].var_name};")
-    glb_out = OrderedDict(
-      map(lambda i: [f"out{i+1}", f"args.out_ptr_{i}"], range(20))
-    )
     out_name = self.get_out_var_name()
-    print('out_name: ', out_name)
-    index_func_unique_id_attr = self.op_property.attributes.name if out_name != "out0" else []
-    index_func_unique_id = index_func_unique_id_attr.match(a_str=lambda x:x) if out_name != "out0" else []
+    mut_kernel_arg_id_registry.get_out_tensor_data_ptr_var_name('output') if out_name != "out0" else None
 
-    mut_kernel_arg_id_registry.get_out_tensor_data_ptr_var_name('output') if out_name != "out0" else []
-    output_seq_name = f"out_ptr_{mut_kernel_arg_id_registry.output_nums - 1}" if out_name != "out0" else []
-    print('output_seq_name: ', output_seq_name)
-    generated_kernel_arg_id_and_names = (
-        mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
-    )
-    print('generated_kernel_arg_id_and_names: ', generated_kernel_arg_id_and_names)
-    kernel_arg_id = filter(
-      lambda item: item[1] == output_seq_name,
-      generated_kernel_arg_id_and_names
-    )[0] if out_name != "out0" else []
-    print(kernel_arg_id) if out_name != "out0" else []
-    dtype = kernel_arg_id[0].type if out_name != "out0" else []
-    type_name = self.dtype2type_name[dtype] if out_name != "out0" else []
-    data_type = self.ptr2type[type_name] if out_name != "out0" else []
-    offset_var_name = self.index_program_translator_map.get_offset_var_name(
-      index_func_unique_id=index_func_unique_id,
-      mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
-      mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
-    ) if out_name != "out0" else []
-    ptr_name = glb_out[out_name] if out_name != "out0" else []
-    mut_lir_code_gen_ctx.stmts.append(
-      f"{ptr_name}[{offset_var_name}] = static_cast<{data_type}>({out_name});"
-    ) if out_name != "out0" else []
+    def generate_store_stmt():
+      index_func_unique_id_attr = self.op_property.attributes.name 
+      index_func_unique_id = index_func_unique_id_attr.match(a_str=lambda x:x) 
+      output_seq_name = f"out_ptr_{mut_kernel_arg_id_registry.output_nums - 1}" 
+      generated_kernel_arg_id_and_names = (
+          mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
+      )
+      kernel_arg_id = filter(
+        lambda item: item[1] == output_seq_name,
+        generated_kernel_arg_id_and_names
+      )[0] 
+      dtype = kernel_arg_id[0].type 
+      type_name = self.dtype2type_name[dtype] 
+      data_type = self.ptr2type[type_name] 
+      offset_var_name = self.index_program_translator_map.get_offset_var_name(
+        index_func_unique_id=index_func_unique_id,
+        mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
+        mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
+      ) 
+      ptr_name = self.local_to_glb_out[out_name] 
+      mut_lir_code_gen_ctx.stmts.append(
+        f"{ptr_name}[{offset_var_name}] = static_cast<{data_type}>({out_name});"
+      ) 
+    generate_store_stmt() if out_name != "out0" else None
     return []
 
   def get_out_var_name(self):
