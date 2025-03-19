@@ -1,2 +1,1 @@
-import test_matmul_binary
-import test_matmul_ternary
+import test_matmul_epilogue

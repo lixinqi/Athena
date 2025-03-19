@@ -37,6 +37,7 @@ class ProgramTranslator:
       mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
       mut_lir_code_gen_ctx=mut_lir_code_gen_ctx
     )
+    print('op_outputs are: ', outputs)
     map(self._set_translated_value, zip(op_property.output_value_indexes, outputs))
 
   def _get_value_property(self, i):

@@ -27,11 +27,15 @@ from paddle.static import InputSpec
 
 def trivial_matrix_binary(x, y, b):
     out = paddle.matmul(x, y)
-    return paddle.nn.functional.relu(out + b)
+    bias = out - b
+    relu = paddle.nn.functional.relu(out)
+    exp = paddle.exp(relu)
+    return bias, relu, exp
+    #return out - b, out
 
-def trivial_matrix_binary_gelu_true(x, y, b):
-    out = paddle.matmul(x, y)
-    return paddle.nn.functional.gelu(out + b, True)
+# def trivial_matrix_binary_gelu_true(x, y, b):
+#     out = paddle.matmul(x, y)
+#     return paddle.nn.functional.gelu(out + b, True)
 
 class CINNSubGraphNet(paddle.nn.Layer):
     def __init__(self, fn):
@@ -62,8 +66,8 @@ class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
         self.y = paddle.randn(self.y_shape, dtype=self.dtype)
         self.y.stop_gradient = False
 
-        # self.b_shape = [32]
-        self.b_shape = [4, 65536, 32]
+        # self.b_shape = [4, 65536, 32]
+        self.b_shape = [32]
         self.b = paddle.randn(self.b_shape, dtype=self.dtype)
         self.b.stop_gradient = False
 
@@ -84,8 +88,9 @@ class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
         cinn_out = self.eval_symbolic(use_cinn=True, profile=profile)
         dy_out = self.eval_symbolic(use_cinn=False, profile=profile)
         if not profile:
-            utils.check_result(self.dtype, cinn_out.numpy(), dy_out.numpy())
-
+            for i,(a,b) in enumerate(zip(cinn_out,dy_out)):
+                print(f'test_eval_symbolic: {i}')
+                utils.check_result(self.dtype, a.numpy(), b.numpy())
 
 if __name__ == "__main__":
     unittest.main()

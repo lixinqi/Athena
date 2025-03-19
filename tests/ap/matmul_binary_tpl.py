@@ -94,6 +94,11 @@ class MatmulBinaryTemplate:
             lambda pair: pair[0].runtime_getter, all_kernel_arg_id_and_unique_names
         )
 
+    def init_outputs(self):
+        out_tensor_data_nums = self.mut_kernel_arg_id_registry.out_tensor_data_ptr_seq_no
+        stmt = map(lambda i: f"out{i}", range(out_tensor_data_nums + 1))
+        return "T " + f", ".join(stmt) + ";"
+
     def get_kernel_arg_types(self):
         all_kernel_arg_id_and_unique_names = (
             self.mut_kernel_arg_id_registry.all_kernel_arg_id2unique_name.items()
@@ -198,9 +203,9 @@ struct VariadicEpilogueFunctor {
   // Note: need to support vectorized operation
   __forceinline__ __host__ __device__
   T operator()(T x, const Arguments& args, const MatrixCoord& coord) const {
-    T out;
+    AP_OUTPUTS_INIT
     AP_GENERATED_BINARY_EPILOGUE_STRING
-    return out;
+    return out0;
   }
 };
 
@@ -238,6 +243,7 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
                 "AP_GENERATED_BINARY_EPILOGUE_STRING", trivial_code_str
             )
             .replace("AP_GENERATED_ELEMENT_DTYPE", output_dtype)
+            .replace("AP_OUTPUTS_INIT", self.init_outputs())
             .replace("AP_KERNEL_ARGS_DECLARE", self.get_kernel_arg_list_str())
             .replace(
                 "AP_INPUT0_SHAPE_INIT",
@@ -258,7 +264,6 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
             .replace("$input1", self.get_kernel_arg_id_var_name(input1_karg))
             .replace("$output", self.get_kernel_arg_id_var_name(output_karg))
         )
-
         source_dir = "/work/abstract_pass/Athena/tests/ap/matmul"
         cutlass_dir = "/work/abstract_pass/Athena/tests/ap/matmul/cutlass"
         compile_cmd = (

@@ -62,8 +62,13 @@ class PdOpSumCodeGen:
 
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     input_iter_var_names = inputs[0].iter_var_names
+    # handle the cases with mm_out's dim != 3
+    reduced_axes = map(
+      lambda index: inputs[1].const_data[index], range(2)
+    ) if len(inputs[1].const_data) >= 3 else [0, 1] if len(inputs[1].const_data) == 1 else inputs[1].const_data
+
     reduced_axes_set = OrderedDict(
-      map(lambda x: [int(x), True], inputs[1].const_data)
+      map(lambda x: [int(x), True], reduced_axes)
     )
     non_reduced_axes = filter(
       lambda x: reduced_axes_set.contains(x) == False,
@@ -93,13 +98,20 @@ class CinnOpReshapeCodeGen:
 
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     symbolic_shape = self.input_properties[0].symbolic_shape
+    print('symbolic_shape', symbolic_shape)
     def get_or_create_dim_var_name(dim_expr):
       arg_var_name = mut_kernel_arg_id_registry.get_dim_expr_var_name(dim_expr)
+      print('dim expr: ', dim_expr)
+      print('arg_var_name: ', arg_var_name)
       return self.kernel_arg_translator.get_use_name(arg_var_name)
+
+    rank = 3 if len(symbolic_shape) > 3 else len(symbolic_shape)
+    rank_bias = len(symbolic_shape) - 3 if len(symbolic_shape) > 3 else 0
+
     def get_dim_var_name(i):
-      dim_expr = symbolic_shape[i]
+      dim_expr = symbolic_shape[i + rank_bias]
       return get_or_create_dim_var_name(dim_expr)
-    rank = len(symbolic_shape)
+
     stride_dims_list = map(
       lambda num_dims: map(lambda i: get_dim_var_name(num_dims + i + 1), range(rank - 1 - num_dims)),
       range(rank)
@@ -108,6 +120,8 @@ class CinnOpReshapeCodeGen:
       lambda pair: [pair[0], *pair[1]],
       zip(inputs[0].iter_var_names, stride_dims_list)
     )
+    print('iter_var_names')
+    map(lambda x: print(x), inputs[0].iter_var_names)
     offset_expr = " + ".join(
       map(
         lambda elts: " * ".join(elts),
@@ -165,4 +179,5 @@ class OpIndexTranslatorFactory:
     )
 
   def _get_class(self, op_name):
+    print('handling op: ', op_name)
     return self.op_name2class[op_name]

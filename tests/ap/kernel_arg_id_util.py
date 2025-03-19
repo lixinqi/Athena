@@ -9,14 +9,18 @@ class KernelArgIdNameRegistry:
     self.in_tensor_data_ptr_seq_no = 0
     self.out_tensor_data_ptr_seq_no = 0
     self.dim_expr_seq_no = 0
+    self.output_nums = 0
 
   def get_or_create_kernel_arg_id_manul_var_name(self, kernel_arg_id, cpp_var_name):
     create = lambda: cpp_var_name
     return self.all_kernel_arg_id2unique_name.get_or_create(kernel_arg_id, create)
 
   def get_in_tensor_data_ptr_var_name(self, in_ir_value_name):
+    print('in_ir_value_name: ', in_ir_value_name)
     ir_value = getattr(self.tensor_match_ctx, in_ir_value_name)
+    print('ir_value: ', ir_value)
     kernel_arg_id = self.code_gen_ctx.in_tensor_data_ptr_kernel_arg_id(ir_value)
+    print('kernel_arg_id: ', kernel_arg_id)
     create = self._get_creator(kernel_arg_id, self._create_in_tensor_data_ptr_var_name)
     return self.generated_kernel_arg_id2unique_name.get_or_create(kernel_arg_id, create)
 
@@ -29,6 +33,8 @@ class KernelArgIdNameRegistry:
     return name
 
   def get_out_tensor_data_ptr_var_name(self, out_ir_value_name):
+    self.output_nums = self.output_nums + 1
+    out_ir_value_name = f"{out_ir_value_name}{self.output_nums}"
     ir_value = getattr(self.tensor_match_ctx, out_ir_value_name)
     kernel_arg_id = self.code_gen_ctx.out_tensor_data_ptr_kernel_arg_id(ir_value)
     create = self._get_creator(kernel_arg_id, self._create_out_tensor_data_ptr_var_name)

@@ -276,6 +276,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
           self, compute_program, anchor_data_op_name, input_names, output_names):
     full_index_program = compute_program.clone()
     self._apply_topo_access_passes(full_index_program, anchor_data_op_name)
+    print('full_index_program:', full_index_program)
     def MatchAndCopyInputIndex(dst_input_name):
         pass_manager = ir_tools.create_pass_manager()
         removed_programs = MutableList()
