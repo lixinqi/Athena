@@ -53,7 +53,17 @@ def cal_successful_rate(log_dir):
             else:
                 # cmd = ["mv", f"{log_dir}/{file_name}", f"{log_dir}/y{file_name}"]
                 pass
-    print('ap coverage rate: ', ap_num / float(sum_num))
+            fd = os.popen(f"cat {log_dir}/{file_name} |  grep '\"pd_op.matmul' | wc -l")
+            output = fd.read()
+            output = output.strip()
+            file_name_short = file_name.strip("log_test_sequence_").strip(".txt")
+            fusion_num = int(output[0])
+            if fusion_num >= 1:
+                pass
+            else:
+                sum_num -= 1
+                print(f'No matmul found in {file_name_short}')
+    print('total: ', sum_num, 'containing ap fusion: ', ap_num, 'ap coverage rate: ', ap_num / float(sum_num))
 
 def hash_code(*args, **kwargs):
     return time.strftime("%Y-%m-%d_%H:%M:%S")
