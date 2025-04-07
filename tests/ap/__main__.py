@@ -1,3 +1,2 @@
-# import test_trivial_reduce
-# import test_binary_trivial_reduce
-import test_matmul_binary
+import matmul_unary_pattern
+import matmul_binary_pattern

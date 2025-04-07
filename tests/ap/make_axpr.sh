@@ -17,8 +17,9 @@ FILENAMES_ARRAY=(
     "access_topo_drr"
     "abstract_drr"
     "ap_tpl_codegen"
-    "matmul_binary_tpl"
-    "test_matmul_binary"
+    "matmul_variadic_tpl"
+    "matmul_unary_pattern"
+    "matmul_binary_pattern"
 )
 for filename in "${FILENAMES_ARRAY[@]}"
 do

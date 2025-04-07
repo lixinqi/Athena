@@ -17,7 +17,7 @@ def is_in_tensor_karg(kernel_arg_id):
     return kernel_arg_id_type_name == "InTensorDataPtrKernelArgId"
 
 
-class MatmulBinaryTemplate:
+class MatmulVariadicTemplate:
     def __init__(
         self,
         program_translator,
@@ -39,8 +39,8 @@ class MatmulBinaryTemplate:
         )
         self.input_dim_karg_to_shape_access = MutableOrderedDict()
         self.input_tensor_karg_to_shape_access = MutableOrderedDict()
-        self.kernel_name = "MatmulBinaryKernel"
-        self.library_name = "matmul_binary_kernel"
+        self.kernel_name = "MatmulVariadicKernel"
+        self.library_name = "matmul_variadic_kernel"
 
     def _register_name(self, pair):
         registry = self.mut_kernel_arg_id_registry
@@ -80,7 +80,7 @@ class MatmulBinaryTemplate:
             mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
         )
         trivial_code_str = mut_lir_code_gen_ctx.get_stmts_joined_str(indent="    ")
-        print("-- matmul_binary_epilogue_code:\n", trivial_code_str)
+        print("-- matmul_variadic_epilogue_code:\n", trivial_code_str)
         project_module = self.make_project(
             trivial_code_str,
             input0_karg,
@@ -393,7 +393,7 @@ void ${kernel_name}(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
 
 
 def KernelDispatch(ctx):
-    so_func = ctx.get_so_function("MatmulBinaryKernel")
+    so_func = ctx.get_so_function("MatmulVariadicKernel")
     stream_ptr = ctx.device_ctx.get_stream_addr_as_void_ptr()
     getters = ctx.kernel_dispatch_const_data.kernel_args_getters
     args = [stream_ptr, *map(lambda getter: getter(ctx), getters)]
