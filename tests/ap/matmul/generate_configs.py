@@ -24,12 +24,12 @@ template <int SwizzleFactor, bool Batched> struct SwizzleWrapper {
 autotune_wrapper_template = """
 #define AP_AUTOTUNE_${datatype}(func) { \\
   static int selected_config_id = -1; \\
-  static std::vector<std::function<void(const GemmEpilogueParams &)>> \\
+  static std::vector<std::function<void(const ap::GemmEpilogueParams &)>> \\
       matmul_functions = { \\
           ${repeat_functions} \\
           };  \\
   if (selected_config_id == -1) { \\
-    selected_config_id = ProfileBestConfig(matmul_functions, params); \\
+    selected_config_id = ap::ProfileBestConfig(matmul_functions, params); \\
   } \\
   matmul_functions[selected_config_id](params); \\
 }
@@ -260,8 +260,10 @@ def main():
     head_code_str = head_template.replace(
         "${num_configs_fp16}", str(num_fp16_configs)
     ).replace("${num_configs_fp32}", str(num_fp32_configs))
-    fp16_autotune_wrapper_code_str = generate_autotune_wrapper("FP16", num_fp16_configs)
-    fp32_autotune_wrapper_code_str = generate_autotune_wrapper("FP32", num_fp32_configs)
+    fp16_autotune_wrapper_code_str = generate_autotune_wrapper("half", num_fp16_configs)
+    fp32_autotune_wrapper_code_str = generate_autotune_wrapper(
+        "float", num_fp32_configs
+    )
     with open("all_tuning_configs.h", "w") as f:
         f.write(head_code_str)
         f.write(fp16_autotune_wrapper_code_str)
