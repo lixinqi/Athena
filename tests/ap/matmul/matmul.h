@@ -45,11 +45,10 @@
     }                                                                          \
   } while (0)
 
-#define AP_ALIGNMENT_half(d) \
-  ((d % 8) == 0) ? 8 : (((d % 4) == 0) ? 4 : (((d % 2) == 0) ? 2: 1))
+#define AP_ALIGNMENT_half(d)                                                   \
+  ((d % 8) == 0) ? 8 : (((d % 4) == 0) ? 4 : (((d % 2) == 0) ? 2 : 1))
 
-#define AP_ALIGNMENT_float(d) \
-  ((d % 4) == 0) ? 4 : (((d % 2) == 0) ? 2: 1)
+#define AP_ALIGNMENT_float(d) ((d % 4) == 0) ? 4 : (((d % 2) == 0) ? 2 : 1)
 
 namespace ap {
 
@@ -87,6 +86,8 @@ struct GemmEpilogueParams {
 
   cudaStream_t stream;
 
+  std::vector<int64_t> input0_shape;
+  std::vector<int64_t> input1_shape;
   std::vector<const void *> epilogue_in_ptrs;
   std::vector<std::vector<int64_t>> epilogue_in_shapes;
 
@@ -101,6 +102,9 @@ struct GemmEpilogueParams {
         output(output), transpose_a(transpose_a), transpose_b(transpose_b) {
     ASSERT_CHECK(input_shape.size() >= 2U);
     ASSERT_CHECK(weight_shape.size() >= 2U);
+
+    input0_shape = input_shape;
+    input1_shape = weight_shape;
 
     batch_count = 1;
     for (size_t i = 0; i < input_shape.size() - 2; ++i) {
@@ -152,8 +156,13 @@ struct GemmEpilogueParams {
     shape_args.ldc_bias = (!bias || is_C_bias) ? 0 : n;
   }
 
-  void SetEpilogues(const std::vector<const void *> &in_ptrs,
-                    const std::vector<std::vector<int64_t>> &in_shapes) {
+  void SetEpilogues(const std::vector<const void *> &in_ptrs) {
+    epilogue_in_ptrs = in_ptrs;
+  }
+
+  void
+  SetEpilogueAndShapes(const std::vector<const void *> &in_ptrs,
+                       const std::vector<std::vector<int64_t>> &in_shapes) {
     ASSERT_CHECK(in_ptrs.size() == in_shapes.size());
     epilogue_in_ptrs = in_ptrs;
     epilogue_in_shapes = in_shapes;
