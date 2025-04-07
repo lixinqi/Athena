@@ -54,8 +54,8 @@ static int ProfileBestConfig(
             << params.batch_count << ", " << params.m << ", " << params.n
             << ", " << params.k << "}" << std::endl;
 
-  constexpr int kWarmupIters = 10;
-  constexpr int kRepeatIters = 1000;
+  constexpr int kWarmupIters = 1;
+  constexpr int kRepeatIters = 100;
 
   GpuTimer gpu_timer(false);
   float min_time_ms = 100000.f;

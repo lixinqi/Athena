@@ -32,11 +32,11 @@ void MatmulKernel(cudaStream_t *stream, const void *input, const void *weight,
                             input_shape, weight_shape, std::vector<int64_t>{},
                             false, transpose_b);
 
-#if AP_ENABLE_AUTO_TUNING
+#if AP_ENABLE_AUTOTUNE
 #if AP_USE_FLOAT16
-  AP_AUTOTUNE_FP16(RunMatmulKernel);
+  AP_AUTOTUNE_half(RunMatmulKernel);
 #else
-  AP_AUTOTUNE_FP32(RunMatmulKernel);
+  AP_AUTOTUNE_float(RunMatmulKernel);
 #endif
 #else
   RunMatmulKernel<DefaultConfig::kConfigId>(params);
