@@ -45,6 +45,11 @@
     }                                                                          \
   } while (0)
 
+#define AP_ALIGNMENT_half(d)                                                   \
+  ((d % 8) == 0) ? 8 : (((d % 4) == 0) ? 4 : (((d % 2) == 0) ? 2 : 1))
+
+#define AP_ALIGNMENT_float(d) ((d % 4) == 0) ? 4 : (((d % 2) == 0) ? 2 : 1)
+
 namespace ap {
 
 template <typename T, int N> using Array = cutlass::Array<T, N>;

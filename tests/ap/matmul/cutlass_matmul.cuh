@@ -67,7 +67,7 @@ cutlass::Status SetMaxDynamicSharedMemorySize() {
     CUTLASS_TRACE_HOST("cudaOccupancyMaxActiveBlocksPerMultiprocessorWithFlags() returned error " << cudaGetErrorString(cudart_result));
     return cutlass::Status::kErrorInternal;
   }
-  CUTLASS_TRACE_HOST("sm_occupancy: (" << sm_occupancy_ << ") "
+  CUTLASS_TRACE_HOST("sm_occupancy: (" << sm_occupancy << ") "
       "smem_size: (" << GemmFunc::kSharedStorageSize << ") "
       "GemmKernel::kThreadCount: (" << GemmFunc::GemmKernel::kThreadCount << ")");
 #endif
@@ -391,6 +391,8 @@ void CutlassMatmulAddBroadcast(const GemmBroadcastEpilogueParams& params) {
 template <typename ElementT,
           typename ElementComputeT,
           template<typename T> class VariadicFunctor,
+          int AlignA = 128 / cutlass::sizeof_bits<ElementT>::value,
+          int AlignB = 128 / cutlass::sizeof_bits<ElementT>::value,
           int ConfigId = DefaultConfig::kConfigId,
           int SwizzleFactor = DefaultConfig::kSwizzleFactor,
           bool Batched = DefaultConfig::kBatched>
@@ -401,12 +403,14 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
   using ElementInputB = typename CutlassDataType<ElementT>::Type; // <- data type of elements in input matrix B
   using ElementOutput = typename CutlassDataType<ElementT>::Type;// <- data type of elements in output matrix D
 
+  constexpr int AlignC = AlignB;
+
   // Epilogue operation as LinearCombination:
   //  alpha * accumulator + beta * source
   using EpilogueOutputOp = cutlass::epilogue::thread::LinearCombinationVariadic<
       VariadicFunctor,
       ElementOutput,
-      128 / cutlass::sizeof_bits<ElementOutput>::value,
+      AlignC,
       ElementAccumulator,
       ElementComputeEpilogue,
       cutlass::epilogue::thread::ScaleType::NoBetaScaling>; // <- alpha x AB + bias
@@ -427,9 +431,9 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
       EpilogueOutputOp,
       typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
       GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
-      128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
-      128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
-      typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
+      AlignA,
+      AlignB,
+      typename GemmOperation<ElementT>::Type
   >;
 
   CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());

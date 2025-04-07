@@ -253,11 +253,16 @@ static void RunMatmulWithVariadicKernel(const GemmEpilogueParams &params) {
   using ElementT = ${output_dtype};
   using ElementComputeT = float;
 
-  typename ap::VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
+  typename VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
 
   AP_EPILOGUE_ARGUMENTS_INIT
 
-  ap::CutlassMatmulAddVariadic<ElementT, ElementComputeT, ap::VariadicEpilogueFunctor, TuningConfigId>(params, epilogue_args);
+  constexpr int AlignA = AP_ALIGNMENT_${output_dtype}(${k_value});
+  constexpr int AlignB = AP_ALIGNMENT_${output_dtype}(${n_value});
+
+  CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
+                           AlignA, AlignB, TuningConfigId>(params,
+                                                           epilogue_args);
 }
 
 } // namespace ap
