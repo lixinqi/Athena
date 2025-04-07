@@ -11,7 +11,9 @@ def get_anchor_iter_var_names():
 
 
 def is_in_tensor_karg(kernel_arg_id):
-    kernel_arg_id_type_name = f"{type(kernel_arg_id)}".replace("<class '", "").replace("'>", "")
+    kernel_arg_id_type_name = f"{type(kernel_arg_id)}".replace("<class '", "").replace(
+        "'>", ""
+    )
     return kernel_arg_id_type_name == "InTensorDataPtrKernelArgId"
 
 
@@ -151,7 +153,9 @@ class MatmulVariadicTemplate:
             map(declare_epilogue_arguments_field, generated_kernel_arg_id_and_names)
         )
 
-    def get_epilogue_arguments_init_str(self, obj_name, params_name, output_dtype, indent):
+    def get_epilogue_arguments_init_str(
+        self, obj_name, params_name, output_dtype, indent
+    ):
         def declare_epilogue_arguments_assign(pair):
             kernel_arg_id = pair[0]
             is_in_tensor_type = is_in_tensor_karg(kernel_arg_id)
@@ -160,13 +164,20 @@ class MatmulVariadicTemplate:
             field_name = self.kernel_arg_translator.get_param_struct_field_name(
                 var_name
             )
+
             def get_in_tensor_statement():
                 param_name_for_var = self.input_tensor_karg_to_shape_access[var_name]
                 return f"reinterpret_cast<const {output_dtype} *>({params_name}.{param_name_for_var})"
+
             def get_dim_expr_statement():
                 param_name_for_var = self.input_dim_karg_to_shape_access[var_name]
                 return f"{params_name}.{param_name_for_var}"
-            statement = get_in_tensor_statement() if is_in_tensor_type else get_dim_expr_statement()
+
+            statement = (
+                get_in_tensor_statement()
+                if is_in_tensor_type
+                else get_dim_expr_statement()
+            )
             return f"{obj_name}.{field_name} = {statement};"
 
         generated_kernel_arg_id_and_names = (
@@ -178,32 +189,43 @@ class MatmulVariadicTemplate:
 
     def get_params_epilogue_ptrs_init_str(self, obj_name, indent):
         in_tensor_id = 0
+
         def declare_params_epilogue_arguments_assign(pair):
             def get_creator():
                 return f"{obj_name}[{in_tensor_id}]"
 
             kernel_arg_id = pair[0]
             is_in_tensor_type = is_in_tensor_karg(kernel_arg_id)
+
             def generate_statement():
-                self.input_tensor_karg_to_shape_access.get_or_create(pair[1], get_creator)
+                self.input_tensor_karg_to_shape_access.get_or_create(
+                    pair[1], get_creator
+                )
                 statement = f"{obj_name}.push_back({pair[1]});"
                 in_tensor_id = in_tensor_id + 1
                 return statement
+
             return generate_statement() if is_in_tensor_type else ""
 
         generated_kernel_arg_id_and_names = (
             self.mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
         )
         return f"\n{indent}".join(
-            map(declare_params_epilogue_arguments_assign, generated_kernel_arg_id_and_names)
+            map(
+                declare_params_epilogue_arguments_assign,
+                generated_kernel_arg_id_and_names,
+            )
         )
 
     def get_params_input_shape_init_str(self, input_name, input_shape_kargs, indent):
         def init_input_shape_with_args(i):
             def get_creator():
                 return f"{input_name}_shape[{i}]"
+
             karg_var_name = self.get_kernel_arg_id_var_name(input_shape_kargs[i])
-            self.input_dim_karg_to_shape_access.get_or_create(karg_var_name, get_creator)
+            self.input_dim_karg_to_shape_access.get_or_create(
+                karg_var_name, get_creator
+            )
             return f"{indent}{input_name}_shape[{i}] = {karg_var_name};"
 
         shape_vector_init_str = (
@@ -302,28 +324,37 @@ void ${kernel_name}(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
             .replace("AP_KERNEL_ARGS_DECLARE", self.get_kernel_arg_list_str())
             .replace(
                 "AP_PARAMS_INPUT0_SHAPE_INIT",
-                self.get_params_input_shape_init_str("${input0}", input0_shape_kargs, indent="  "),
+                self.get_params_input_shape_init_str(
+                    "${input0}", input0_shape_kargs, indent="  "
+                ),
             )
             .replace(
                 "AP_PARAMS_INPUT1_SHAPE_INIT",
-                self.get_params_input_shape_init_str("${input1}", input1_shape_kargs, indent="  "),
+                self.get_params_input_shape_init_str(
+                    "${input1}", input1_shape_kargs, indent="  "
+                ),
             )
             .replace(
                 "AP_PARAMS_EPILOGUE_PTRS_INIT",
                 self.get_params_epilogue_ptrs_init_str("epilogue_in_ptrs", indent="  "),
             )
             .replace(
-                "AP_EPILOGUE_ARGUMENTS_FIELDS", self.get_epilogue_arguments_fields_str(indent="    ")
+                "AP_EPILOGUE_ARGUMENTS_FIELDS",
+                self.get_epilogue_arguments_fields_str(indent="    "),
             )
             .replace(
                 "AP_EPILOGUE_ARGUMENTS_INIT",
-                self.get_epilogue_arguments_init_str("epilogue_args", "params", output_dtype, indent="  "),
+                self.get_epilogue_arguments_init_str(
+                    "epilogue_args", "params", output_dtype, indent="  "
+                ),
             )
             .replace("${kernel_name}", self.kernel_name)
             .replace("${input0}", self.get_kernel_arg_id_var_name(input0_karg))
             .replace("${input1}", self.get_kernel_arg_id_var_name(input1_karg))
             .replace("${output}", self.get_kernel_arg_id_var_name(output_karg))
             .replace("${output_dtype}", output_dtype)
+            .replace("${k_value}", f"{input0_shape_kargs[-1].value}")
+            .replace("${n_value}", f"{input1_shape_kargs[-1].value}")
         )
 
         source_dir = "/work/abstract_pass/Athena/tests/ap/matmul"
