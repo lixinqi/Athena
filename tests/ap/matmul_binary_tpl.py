@@ -219,14 +219,17 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
   ap::GemmEpilogueParams params(
       *cuda_stream_ptr, $input0, $input1, nullptr, $output, $input0_shape, $input1_shape, std::vector<int64_t>{});
 
-  using ElementT = AP_GENERATED_ELEMENT_DTYPE;
+  using ElementT = ${output_dtype};
   using ElementComputeT = float;
 
   typename ap::VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
 
   AP_EPILOGUE_ARGUMENTS_INIT
 
-  ap::CutlassMatmulAddVariadic<ElementT, ElementComputeT, ap::VariadicEpilogueFunctor>(params, epilogue_args);
+  constexpr int AlignA = AP_ALIGNMENT_${output_dtype}(${k_value});
+  constexpr int AlignB = AP_ALIGNMENT_${output_dtype}(${n_value});
+
+  ap::CutlassMatmulAddVariadic<ElementT, ElementComputeT, ap::VariadicEpilogueFunctor, AlignA, AlignB>(params, epilogue_args);
 }
 }
 
@@ -237,7 +240,6 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
             code_template.replace(
                 "AP_GENERATED_BINARY_EPILOGUE_STRING", trivial_code_str
             )
-            .replace("AP_GENERATED_ELEMENT_DTYPE", output_dtype)
             .replace("AP_KERNEL_ARGS_DECLARE", self.get_kernel_arg_list_str())
             .replace(
                 "AP_INPUT0_SHAPE_INIT",
@@ -257,6 +259,9 @@ void MatmulBinaryKernel(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
             .replace("$input0", self.get_kernel_arg_id_var_name(input0_karg))
             .replace("$input1", self.get_kernel_arg_id_var_name(input1_karg))
             .replace("$output", self.get_kernel_arg_id_var_name(output_karg))
+            .replace("${output_dtype}", output_dtype)
+            .replace("${k_value}", f"{input0_shape_kargs[-1].value}")
+            .replace("${n_value}", f"{input1_shape_kargs[-1].value}")
         )
 
         source_dir = "/work/abstract_pass/Athena/tests/ap/matmul"

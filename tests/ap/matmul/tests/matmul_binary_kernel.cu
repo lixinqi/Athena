@@ -36,8 +36,11 @@ static void RunMatmulAddBinaryKernel(const GemmEpilogueParams &params) {
         reinterpret_cast<const ElementT *>(params.epilogue_in_ptrs[0]);
   }
 
+  constexpr int AlignA = 128 / cutlass::sizeof_bits<ElementT>::value;
+  constexpr int AlignB = 128 / cutlass::sizeof_bits<ElementT>::value;
   CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
-                           TuningConfigId>(params, variadic_args);
+                           AlignA, AlignB, TuningConfigId>(params,
+                                                           variadic_args);
 }
 
 void MatmulAddBinaryKernel(
