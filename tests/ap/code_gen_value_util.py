@@ -1,14 +1,24 @@
+class TensorCodeGenValue:
+    def __init__(self, pir_type, var_name):
+        self.pir_type = pir_type
+        self.var_name = var_name
+        self.const_value = None
 
-class CodeGenValue:
-  def __init__(self, pir_type, var_name):
-    self.pir_type = pir_type
-    self.var_name = var_name
-    self.const_value = None
+    def get_dtype(self):
+        def convert_to_dtype(pir_dtype, shape, data_layout):
+            return pir_dtype.convert_to_dtype()
 
-  def get_dtype(self):
-    def convert_to_dtype(pir_dtype, shape, data_layout):
-      return pir_dtype.convert_to_dtype()
-    return self.pir_type.match(t_dtensor=convert_to_dtype)
+        return self.pir_type.match(t_dtensor=convert_to_dtype)
 
-  def is_dense_tensor_type(self):
-    return self.pir_type.get_type_name() == "t_dtensor"
+    def is_dense_tensor_type(self):
+        return self.pir_type.get_type_name() == "t_dtensor"
+
+
+class AttrCodeGenValue:
+    def __init__(self, data_type, var_name):
+        self.data_type = data_type
+        self.var_name = var_name
+        self.const_value = None
+
+    def get_dtype(self):
+        return self.data_type
