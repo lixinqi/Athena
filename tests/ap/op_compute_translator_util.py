@@ -260,7 +260,7 @@ class PdOpElementwisePowCodeGen:
     exponent = inputs[1].var_name
     var_name = inputs[0].var_name
     out = self.get_out_cg_val(0)
-    mut_lir_code_gen_ctx.let(out, f"pow({var_name}, {exponent})")
+    mut_lir_code_gen_ctx.let(out, f"ComputePow({var_name}, {exponent})")
     return [out]
 
   def get_out_cg_val(self, i):
