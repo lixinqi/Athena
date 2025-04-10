@@ -48,8 +48,10 @@ class ApOpLoadFromGlobalCodeGen:
       mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
     )
     data_op_name = inputs[0].var_name
+    print('data_name of OpLoadFromGlobal is: ', data_op_name)
     arg_name = mut_kernel_arg_id_registry.get_in_tensor_data_ptr_var_name(data_op_name)
     ptr_var_name = self.kernel_arg_translator.get_use_name(arg_name)
+    print('ptr_var of OpLoadFromGlobal is: ', ptr_var_name)
     out = self.get_out_cg_val(0)
     mut_lir_code_gen_ctx.let(out, f"{ptr_var_name}[{offset_var_name}]")
     return [out]
@@ -73,9 +75,58 @@ class ApOpStoreToRegisterCodeGen:
     self.output_properties = output_properties
     self.kernel_arg_translator = kernel_arg_translator
     self.index_program_translator_map = index_program_translator_map
+    self.dtype2type_name = OrderedDict(
+        [
+            [PointerType.const_float_ptr, "const float*"],
+            [PointerType.const_float16_ptr, "const half*"],
+            [PointerType.float_ptr, "float*"],
+            [PointerType.float16_ptr, "half*"],
+            [DataType.float, "float"],
+            [DataType.float16, "half"],
+            [DataType.int64_t, "int64_t"],
+        ]
+    )
+    self.ptr2type = OrderedDict(
+        [
+            ["float*", "float"],
+            ["half*", "half"],
+        ]
+    )
+    # TODO: replace the dictionary with more robust method
+    #       to find the corresponding global variable name of the output register
+    self.local_to_glb_out = OrderedDict(
+      map(lambda i: [f"out{i+1}", f"args.out_ptr_{i}"], range(30))
+    )
 
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     mut_lir_code_gen_ctx.stmts.append(f"{self.get_out_var_name()} = {inputs[0].var_name};")
+    out_name = self.get_out_var_name()
+    mut_kernel_arg_id_registry.get_out_tensor_data_ptr_var_name(out_name) if out_name != "out0" else None
+
+    def generate_store_stmt():
+      index_func_unique_id_attr = self.op_property.attributes.name
+      index_func_unique_id = index_func_unique_id_attr.match(a_str=lambda x:x) 
+      output_seq_name = f"out_ptr_{mut_kernel_arg_id_registry.out_tensor_data_ptr_seq_no}"
+      generated_kernel_arg_id_and_names = (
+          mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
+      )
+      kernel_arg_id = filter(
+        lambda item: item[1] == output_seq_name,
+        generated_kernel_arg_id_and_names
+      )[0]
+      dtype = kernel_arg_id[0].type
+      type_name = self.dtype2type_name[dtype]
+      data_type = self.ptr2type[type_name]
+      offset_var_name = self.index_program_translator_map.get_offset_var_name(
+        index_func_unique_id=index_func_unique_id,
+        mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
+        mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
+      )
+      ptr_name = self.local_to_glb_out[out_name]
+      mut_lir_code_gen_ctx.stmts.append(
+        f"{ptr_name}[{offset_var_name}] = static_cast<{data_type}>({out_name});"
+      )
+    generate_store_stmt() if out_name != "out0" else None
     return []
 
   def get_out_var_name(self):
@@ -493,6 +544,22 @@ class CinnOpBroadcastCodeGen:
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     return inputs
 
+class CinnOpExpandCodeGen:
+  def __init__(self,
+               op_property,
+               input_properties,
+               output_properties,
+               kernel_arg_translator,
+               index_program_translator_map):
+    self.op_property = op_property
+    self.input_properties = input_properties
+    self.output_properties = output_properties
+    self.kernel_arg_translator = kernel_arg_translator
+    self.index_program_translator_map = index_program_translator_map
+
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
+    return [inputs[0]]
+
 class CinnOpGenerateShapeCodeGen:
   def __init__(self,
                op_property,
@@ -539,6 +606,7 @@ class OpComputeTranslatorFactory:
       ["pd_op.maximum",             PdOpMaximumCodeGen],
       ["cinn_op.yield_store",       CinnOpYieldStoreCodeGen],
       ["cinn_op.broadcast",         CinnOpBroadcastCodeGen],
+      ["pd_op.expand",              CinnOpExpandCodeGen],
       ["cinn_op.generate_shape",    CinnOpGenerateShapeCodeGen]
     ])
 
