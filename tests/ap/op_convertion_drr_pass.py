@@ -4,15 +4,15 @@ import access_topo_drr
 class PdOpCastAccessTopoPass(access_topo_drr.DrrPass):
 
   def source_pattern(self, o, t):
-    o.exp_op = o.ap_native_op("pd_op.cast")
-    o.exp_op(
+    o.cast_op = o.ap_native_op("pd_op.cast")
+    o.cast_op(
       [t.input],
       [t.output]
     )
 
   def result_pattern(self, o, t):
-    o.fustion_op = o.ap_native_op("pd_op.relu")
-    o.fustion_op(
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
       [t.input],
       [t.output]
     )
@@ -21,15 +21,15 @@ class PdOpCastAccessTopoPass(access_topo_drr.DrrPass):
 class PdOpTanhAccessTopoPass(access_topo_drr.DrrPass):
 
   def source_pattern(self, o, t):
-    o.exp_op = o.ap_native_op("pd_op.tanh")
-    o.exp_op(
+    o.tanh_op = o.ap_native_op("pd_op.tanh")
+    o.tanh_op(
       [t.input],
       [t.output]
     )
 
   def result_pattern(self, o, t):
-    o.fustion_op = o.ap_native_op("pd_op.relu")
-    o.fustion_op(
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
       [t.input],
       [t.output]
     )
@@ -38,15 +38,15 @@ class PdOpTanhAccessTopoPass(access_topo_drr.DrrPass):
 class PdOpErfAccessTopoPass(access_topo_drr.DrrPass):
 
   def source_pattern(self, o, t):
-    o.exp_op = o.ap_native_op("pd_op.erf")
-    o.exp_op(
+    o.erf_op = o.ap_native_op("pd_op.erf")
+    o.erf_op(
       [t.input],
       [t.output]
     )
 
   def result_pattern(self, o, t):
-    o.fustion_op = o.ap_native_op("pd_op.relu")
-    o.fustion_op(
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
       [t.input],
       [t.output]
     )
@@ -79,8 +79,8 @@ class PdOpExpAccessTopoPass(access_topo_drr.DrrPass):
     )
 
   def result_pattern(self, o, t):
-    o.fustion_op = o.ap_native_op("pd_op.relu")
-    o.fustion_op(
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
       [t.input],
       [t.output]
     )
@@ -89,15 +89,15 @@ class PdOpExpAccessTopoPass(access_topo_drr.DrrPass):
 class CinnOpScaleAccessTopoPass(access_topo_drr.DrrPass):
 
   def source_pattern(self, o, t):
-    o.exp_op = o.ap_native_op("cinn_op.scale")
-    o.exp_op(
+    o.scale_op = o.ap_native_op("cinn_op.scale")
+    o.scale_op(
       [t.input],
       [t.output]
     )
 
   def result_pattern(self, o, t):
-    o.fustion_op = o.ap_native_op("pd_op.relu")
-    o.fustion_op(
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
       [t.input],
       [t.output]
     )
@@ -113,8 +113,8 @@ class PdOpSinAccessTopoPass(access_topo_drr.DrrPass):
     )
 
   def result_pattern(self, o, t):
-    o.fustion_op = o.ap_native_op("pd_op.relu")
-    o.fustion_op(
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
       [t.input],
       [t.output]
     )
@@ -123,15 +123,15 @@ class PdOpSinAccessTopoPass(access_topo_drr.DrrPass):
 class CinnOpYieldStoreAccessTopoPass(access_topo_drr.DrrPass):
 
   def source_pattern(self, o, t):
-    o.exp_op = o.ap_native_op("cinn_op.yield_store")
-    o.exp_op(
+    o.yeild_op = o.ap_native_op("cinn_op.yield_store")
+    o.yeild_op(
       [t.input],
       [t.output]
     )
 
   def result_pattern(self, o, t):
-    o.fustion_op = o.ap_native_op("pd_op.relu")
-    o.fustion_op(
+    o.result_op = o.ap_native_op("pd_op.relu")
+    o.result_op(
       [t.input],
       [t.output]
     )
@@ -181,8 +181,8 @@ class PdOpMultiplyAccessTopoPass(access_topo_drr.DrrPass):
     )
 
   def result_pattern(self, o, t):
-    o.fustion_op = o.ap_native_op("pd_op.add")
-    o.fustion_op(
+    o.result_op = o.ap_native_op("pd_op.add")
+    o.result_op(
       [t.input0, t.input1],
       [t.output]
     )
