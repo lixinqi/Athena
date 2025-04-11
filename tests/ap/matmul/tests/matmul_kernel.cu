@@ -34,9 +34,9 @@ void MatmulKernel(cudaStream_t *stream, const void *input, const void *weight,
 
 #if AP_ENABLE_AUTOTUNE
 #if AP_USE_FLOAT16
-  AP_AUTOTUNE_half(RunMatmulKernel);
+  AP_AUTOTUNE_half(RunMatmulKernel, *stream, params);
 #else
-  AP_AUTOTUNE_float(RunMatmulKernel);
+  AP_AUTOTUNE_float(RunMatmulKernel, *stream, params);
 #endif
 #else
   RunMatmulKernel<DefaultConfig::kConfigId>(params);

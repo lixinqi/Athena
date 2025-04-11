@@ -57,9 +57,9 @@ void MatmulAddBinaryKernel(
 
 #if AP_ENABLE_AUTOTUNE
 #if AP_USE_FLOAT16
-  AP_AUTOTUNE_half(RunMatmulAddBinaryKernel);
+  AP_AUTOTUNE_half(RunMatmulAddBinaryKernel, *stream, params);
 #else
-  AP_AUTOTUNE_float(RunMatmulAddBinaryKernel);
+  AP_AUTOTUNE_float(RunMatmulAddBinaryKernel, *stream, params);
 #endif
 #else
   RunMatmulAddBinaryKernel<DefaultConfig::kConfigId>(params);

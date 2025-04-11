@@ -308,7 +308,7 @@ void ${kernel_name}(void* stream_ptr, AP_KERNEL_ARGS_DECLARE) {
   params.SetEpilogues(epilogue_in_ptrs);
 
 #if AP_ENABLE_AUTOTUNE
-  AP_AUTOTUNE_${output_dtype}(ap::RunMatmulWithVariadicKernel);
+  AP_AUTOTUNE_${output_dtype}(ap::RunMatmulWithVariadicKernel, *cuda_stream_ptr, params);
 #else
   ap::RunMatmulWithVariadicKernel<ap::DefaultConfig::kConfigId>(params);
 #endif
