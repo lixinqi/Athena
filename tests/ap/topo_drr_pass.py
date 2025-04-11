@@ -354,7 +354,7 @@ class DownSpiderUpSpiderAccessTopoPass(access_topo_drr.DrrPass):
     pass
 
 
-@access_topo_drr.register_drr_pass("down_spider_add", tag="default")
+@access_topo_drr.register_drr_pass("left_down_spider_add", tag="default")
 class DownSpiderAddAccessTopoPass(access_topo_drr.DrrPass):
 
   def source_pattern(self, o, t):
@@ -381,6 +381,32 @@ class DownSpiderAddAccessTopoPass(access_topo_drr.DrrPass):
       []
     )
 
+@access_topo_drr.register_drr_pass("right_down_spider_add", tag="default")
+class DownSpiderAddAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.spider = o.ap_native_op("ap_op.down_spider")
+    o.spider(
+      [t.input0],
+      [t.tmp0]
+    )
+    o.add = o.ap_native_op("pd_op.add")
+    o.add(
+      [t.tmp1, t.tmp0],
+      [t.output]
+    )
+
+  def result_pattern(self, o, t):
+    o.down_spider = o.ap_native_op("ap_op.down_spider")
+    o.down_spider(
+      [t.input0],
+      [t.output]
+    )
+    o.up_spider = o.ap_native_op("ap_op.up_spider")
+    o.up_spider(
+      [t.tmp1, t.input0],
+      []
+    )
 
 @access_topo_drr.register_drr_pass("expand_up_spider", tag="default")
 class ExpandUpSpiderAccessTopoPass(access_topo_drr.DrrPass):
@@ -533,3 +559,21 @@ class LeftDownSpiderUpSpiderAccessTopoPass(access_topo_drr.DrrPass):
       [t.input0, t.input1],
       []
     )
+
+@access_topo_drr.register_drr_pass("triangle_left_down_spider_up_spider", tag="default")
+class TriangleLeftDownSpiderUpSpiderAccessTopoPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.expand = o.ap_native_op("ap_op.down_spider")
+    o.expand(
+      [t.input0],
+      [t.output0]
+    )
+    o.up_spider = o.ap_native_op("ap_op.up_spider")
+    o.up_spider(
+      [t.input0, t.output0],
+      []
+    )
+
+  def result_pattern(self, o, t):
+    pass

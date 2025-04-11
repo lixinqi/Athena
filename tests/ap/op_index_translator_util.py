@@ -101,7 +101,7 @@ class CinnOpReshapeCodeGen:
       return get_or_create_dim_var_name(dim_expr)
     rank = len(symbolic_shape)
     stride_dims_list = map(
-      lambda num_dims: map(lambda i: get_dim_var_name(i + 1), range(rank - 1 - num_dims)),
+      lambda num_dims: map(lambda i: get_dim_var_name(num_dims + i + 1), range(rank - 1 - num_dims)),
       range(rank)
     )
     var_name_and_dims_list = map(
@@ -135,7 +135,6 @@ class CfYieldCodeGen:
 
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     return []
-
 
 
 class OpIndexTranslatorFactory:
