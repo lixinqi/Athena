@@ -14,11 +14,13 @@ FILENAMES_ARRAY=(
     "__main__"
     "topo_drr_pass"
     "op_convertion_drr_pass"
+    "umprime"
     "access_topo_drr"
     "abstract_drr"
+    "matmul_epilogue_pass_of_remove_functions"
     "ap_tpl_codegen"
     "matmul_binary_tpl"
-    "test_matmul_binary"
+    "test_matmul_epilogue"
 )
 for filename in "${FILENAMES_ARRAY[@]}"
 do
