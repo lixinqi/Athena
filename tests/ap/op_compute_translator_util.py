@@ -493,6 +493,22 @@ class CinnOpBroadcastCodeGen:
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     return inputs
 
+class CinnOpExpandCodeGen:
+  def __init__(self,
+               op_property,
+               input_properties,
+               output_properties,
+               kernel_arg_translator,
+               index_program_translator_map):
+    self.op_property = op_property
+    self.input_properties = input_properties
+    self.output_properties = output_properties
+    self.kernel_arg_translator = kernel_arg_translator
+    self.index_program_translator_map = index_program_translator_map
+
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
+    return [inputs[0]]
+
 class CinnOpGenerateShapeCodeGen:
   def __init__(self,
                op_property,
@@ -539,6 +555,7 @@ class OpComputeTranslatorFactory:
       ["pd_op.maximum",             PdOpMaximumCodeGen],
       ["cinn_op.yield_store",       CinnOpYieldStoreCodeGen],
       ["cinn_op.broadcast",         CinnOpBroadcastCodeGen],
+      ["pd_op.expand",              CinnOpExpandCodeGen],
       ["cinn_op.generate_shape",    CinnOpGenerateShapeCodeGen]
     ])
 
