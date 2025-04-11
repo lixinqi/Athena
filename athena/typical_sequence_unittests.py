@@ -62,7 +62,7 @@ def GetSha256sum(content):
 
 
 def PrintToTerminal(name, filepath, unittest):
-    print("# typical_sequence unittest:", name, filepath)
+    print("# typical-sequence unittest:", name, filepath)
     # print("# file-splitter-begin-fusion-op-name: ", name, filepath)
     # print(unittest)
     # print("# file-splitter--end--fusion-op-name: ", name, filepath)

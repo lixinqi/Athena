@@ -15,6 +15,7 @@ from athena.rp_expr.rp_expr import (
     LetsListTokenRpExpr,
 )
 import itertools
+import sys
 
 
 class Pass:
@@ -48,7 +49,7 @@ class FlattenTokenListPass(Pass):
 
 
 class FoldTokensPass(Pass):
-    def __init__(self, id_allocator: TokenIdAllocator, window_size=8):
+    def __init__(self, id_allocator: TokenIdAllocator, window_size=8, policy='default'):
         self.window_size = window_size
         self.random_feature_size = 2
         self.id_allocator = id_allocator
@@ -57,16 +58,18 @@ class FoldTokensPass(Pass):
             [size, self.random_feature_size], dtype="float64", min=-1, max=1, seed=2024
         )
         self.embedding.stop_gradient = False
+        self.policy = policy
 
     def __call__(self, token_tensor: NaiveTokenRpExpr):
         input_tensor = token_tensor.tensor
-        most_frequent_length, indexes = self.GetMostFrequentPatternLengthAndIndexes(
+        raw_most_frequent_length, indexes = self.GetMostFrequentPatternLengthAndIndexes(
             input_tensor
         )
         most_frequent_length = self.GetAdaptivePatternLength(
-            most_frequent_length,
+            raw_most_frequent_length,
             indexes,
         )
+        # print(f"{self.window_size=}, {raw_most_frequent_length=}, {most_frequent_length=}")
         new_token_id, replacement = self.Replace(
             pattern_length=most_frequent_length,
             indexes=indexes,
@@ -83,13 +86,17 @@ class FoldTokensPass(Pass):
 
     def GetAdaptivePatternLength(self, pattern_length, indexes):
         indexes = indexes.numpy().tolist()
+        kLimit = self.window_size * 2
         while pattern_length > 1:
             disjoint_range_starts = [
                 start for start in self.GetDisjoint(pattern_length, indexes)
             ]
             if len(disjoint_range_starts) > 1:
                 break
-            pattern_length = pattern_length // 2
+            if pattern_length > kLimit:
+                pattern_length = pattern_length // 2
+            else:
+                pattern_length -= 1
         return pattern_length
 
     def Replace(
@@ -192,9 +199,17 @@ class FoldTokensPass(Pass):
         unique_pattern_len_sub_1_and_hash, counts = paddle.unique(
             pattern_len_sub_1_and_hash, axis=0, return_counts=True
         )
-        most_frequent_hash_idx = paddle.argmax(
-            unique_pattern_len_sub_1_and_hash[:, 0] * (counts - 1)
-        )
+        if self.policy == 'default':
+            most_frequent_hash_idx = paddle.argmax(
+                unique_pattern_len_sub_1_and_hash[:, 0] * (counts - 1)
+            )
+        elif self.policy == 'longest':
+            most_frequent_hash_idx = paddle.argmax(
+                unique_pattern_len_sub_1_and_hash[:, 0] * (counts > 1).cast(paddle.int64)
+            )
+        else:
+            assert False, f"policy {self.policy} not implemneted."
+
         most_frequent_hash = int(
             unique_pattern_len_sub_1_and_hash[most_frequent_hash_idx, 1]
         )
@@ -209,12 +224,20 @@ class FoldTokensPass(Pass):
 
 
 class RecursiveFoldTokensPass(Pass):
-    def __init__(self, id_allocator: TokenIdAllocator, window_size=8):
+    def __init__(
+        self,
+        id_allocator: TokenIdAllocator,
+        window_size=8,
+        fold_policy="default",
+        fold_times=None
+    ):
         self.id_allocator = id_allocator
         self.window_size = window_size
+        self.fold_policy = fold_policy
+        self.fold_times = fold_times if fold_times is not None else sys.maxsize
 
     def __call__(self, token_tensor: NaiveTokenRpExpr):
-        fold_pass = FoldTokensPass(self.id_allocator, self.window_size)
+        fold_pass = FoldTokensPass(self.id_allocator, self.window_size, policy=self.fold_policy)
         success, ret = fold_pass(token_tensor)
         if not success:
             return False, token_tensor
@@ -223,8 +246,8 @@ class RecursiveFoldTokensPass(Pass):
         token_tensor = ret.body_rp_expr
         counter = itertools.count()
         kLimit = 9999999
-        while True:
-            fold_pass = FoldTokensPass(self.id_allocator, self.window_size)
+        for _ in range(self.fold_times):
+            fold_pass = FoldTokensPass(self.id_allocator, self.window_size, policy=self.fold_policy)
             success, ret = fold_pass(token_tensor)
             if not success:
                 token_tensor = ret
