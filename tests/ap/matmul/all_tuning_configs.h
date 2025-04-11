@@ -20,32 +20,34 @@ template <int SwizzleFactor, bool Batched> struct SwizzleWrapper {
 //       cutlass::gemm::threadblock::GemmBatchedIdentityThreadblockSwizzle;
 // };
 
-#define AP_AUTOTUNE_half(func)                                                 \
+#define AP_AUTOTUNE_half(func, stream, ...)                                    \
   {                                                                            \
+    using FuncType = decltype(func<0>);                                        \
     static int selected_config_id = -1;                                        \
-    static std::vector<std::function<void(const ap::GemmEpilogueParams &)>>    \
-        matmul_functions = {func<0>,  func<1>,  func<2>,  func<3>,  func<4>,   \
-                            func<5>,  func<6>,  func<7>,  func<8>,  func<9>,   \
-                            func<10>, func<11>, func<12>, func<13>, func<14>,  \
-                            func<15>, func<16>, func<17>, func<18>, func<19>,  \
-                            func<20>, func<21>, func<22>};                     \
+    static std::vector<std::function<FuncType>> matmul_functions = {           \
+        func<0>,  func<1>,  func<2>,  func<3>,  func<4>,  func<5>,             \
+        func<6>,  func<7>,  func<8>,  func<9>,  func<10>, func<11>,            \
+        func<12>, func<13>, func<14>, func<15>, func<16>, func<17>,            \
+        func<18>, func<19>, func<20>, func<21>, func<22>};                     \
     if (selected_config_id == -1) {                                            \
-      selected_config_id = ap::ProfileBestConfig(matmul_functions, params);    \
+      selected_config_id =                                                     \
+          ap::ProfileBestConfig(matmul_functions, stream, ##__VA_ARGS__);      \
     }                                                                          \
-    matmul_functions[selected_config_id](params);                              \
+    matmul_functions[selected_config_id](__VA_ARGS__);                         \
   }
 
-#define AP_AUTOTUNE_float(func)                                                \
+#define AP_AUTOTUNE_float(func, stream, ...)                                   \
   {                                                                            \
+    using FuncType = decltype(func<0>);                                        \
     static int selected_config_id = -1;                                        \
-    static std::vector<std::function<void(const ap::GemmEpilogueParams &)>>    \
-        matmul_functions = {func<0>,  func<1>,  func<2>, func<3>, func<4>,     \
-                            func<5>,  func<6>,  func<7>, func<8>, func<9>,     \
-                            func<10>, func<11>, func<12>};                     \
+    static std::vector<std::function<FuncType>> matmul_functions = {           \
+        func<0>, func<1>, func<2>, func<3>,  func<4>,  func<5>, func<6>,       \
+        func<7>, func<8>, func<9>, func<10>, func<11>, func<12>};              \
     if (selected_config_id == -1) {                                            \
-      selected_config_id = ap::ProfileBestConfig(matmul_functions, params);    \
+      selected_config_id =                                                     \
+          ap::ProfileBestConfig(matmul_functions, stream, ##__VA_ARGS__);      \
     }                                                                          \
-    matmul_functions[selected_config_id](params);                              \
+    matmul_functions[selected_config_id](__VA_ARGS__);                         \
   }
 
 template <typename ElementT, int SwizzleFactor, bool Batched, int Id = 0>

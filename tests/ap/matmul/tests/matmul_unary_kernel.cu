@@ -43,9 +43,9 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
 
 #if AP_ENABLE_AUTOTUNE
 #if AP_USE_FLOAT16
-  AP_AUTOTUNE_half(RunMatmulAddUnaryKernel);
+  AP_AUTOTUNE_half(RunMatmulAddUnaryKernel, *stream, params);
 #else
-  AP_AUTOTUNE_float(RunMatmulAddUnaryKernel);
+  AP_AUTOTUNE_float(RunMatmulAddUnaryKernel, *stream, params);
 #endif
 #else
   RunMatmulAddUnaryKernel<DefaultConfig::kConfigId>(params);

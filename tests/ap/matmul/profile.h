@@ -43,16 +43,12 @@ private:
   cudaEvent_t stop_{nullptr};
 };
 
-static int ProfileBestConfig(
-    const std::vector<std::function<void(const GemmEpilogueParams &)>>
-        &gemm_functions,
-    const GemmEpilogueParams &params) {
+template <typename FuncType, typename... Args>
+int ProfileBestConfig(const std::vector<FuncType> &funcs, cudaStream_t stream,
+                      Args &&...args) {
   std::cout
       << "=================================================================="
       << std::endl;
-  std::cout << "-- [ProfileBestConfig] Tunning for problem: {"
-            << params.batch_count << ", " << params.m << ", " << params.n
-            << ", " << params.k << "}" << std::endl;
 
   constexpr int kWarmupIters = 1;
   constexpr int kRepeatIters = 100;
@@ -61,20 +57,20 @@ static int ProfileBestConfig(
   float min_time_ms = 100000.f;
   int min_time_idx = -1;
 
-  for (int idx = 0; idx < gemm_functions.size(); ++idx) {
-    auto func = gemm_functions[idx];
+  for (int idx = 0; idx < funcs.size(); ++idx) {
+    auto func = funcs[idx];
     for (int i = 0; i < kWarmupIters; i++) {
-      func(params);
+      func(std::forward<Args>(args)...);
     }
-    if (params.stream) {
-      CHECK_CUDA(cudaStreamSynchronize(params.stream));
+    if (stream) {
+      CHECK_CUDA(cudaStreamSynchronize(stream));
     }
 
-    gpu_timer.Start(params.stream);
+    gpu_timer.Start(stream);
     for (int i = 0; i < kRepeatIters; i++) {
-      func(params);
+      func(std::forward<Args>(args)...);
     }
-    gpu_timer.Stop(params.stream);
+    gpu_timer.Stop(stream);
 
     float elapsed_time_ms = gpu_timer.ElapsedTime();
     std::cout << "-- [ProfileBestConfig] No " << idx

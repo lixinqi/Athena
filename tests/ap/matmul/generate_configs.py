@@ -22,16 +22,17 @@ template <int SwizzleFactor, bool Batched> struct SwizzleWrapper {
 """
 
 autotune_wrapper_template = """
-#define AP_AUTOTUNE_${datatype}(func) { \\
+#define AP_AUTOTUNE_${datatype}(func, stream, ...) { \\
+  using FuncType = decltype(func<0>); \\
   static int selected_config_id = -1; \\
-  static std::vector<std::function<void(const ap::GemmEpilogueParams &)>> \\
+  static std::vector<std::function<FuncType>> \\
       matmul_functions = { \\
           ${repeat_functions} \\
           };  \\
   if (selected_config_id == -1) { \\
-    selected_config_id = ap::ProfileBestConfig(matmul_functions, params); \\
+    selected_config_id = ap::ProfileBestConfig(matmul_functions, stream, ##__VA_ARGS__); \\
   } \\
-  matmul_functions[selected_config_id](params); \\
+  matmul_functions[selected_config_id](__VA_ARGS__); \\
 }
 """
 
