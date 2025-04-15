@@ -21,6 +21,7 @@ FILENAMES_ARRAY=(
     "matmul_binary_tpl"
     "matmul_epilogue_pass"
     "test_matmul_binary"
+    "test_matmul_epilogue"
 )
 for filename in "${FILENAMES_ARRAY[@]}"
 do
