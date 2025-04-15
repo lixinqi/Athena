@@ -14,6 +14,7 @@ FILENAMES_ARRAY=(
     "__main__"
     "topo_drr_pass"
     "op_convertion_drr_pass"
+    "umprime"
     "access_topo_drr"
     "abstract_drr"
     "ap_tpl_codegen"

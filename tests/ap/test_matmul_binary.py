@@ -11,6 +11,7 @@ import kernel_arg_id_util
 import low_level_ir_code_gen_ctx_util
 import kernel_arg_translator_util
 import pir
+import umprime
 
 class RemoveDataOpPairPass(access_topo_drr.DrrPass):
   def __init__(self, src_data_op_name, dst_data_op_name):
@@ -189,6 +190,12 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
 
   def constraint(self, o, t):
     program = ir_tools.copy_fused_ops_to_program(o.trivial_op, tensor_match_ctx=t)
+    print("before-umprime: ", program)
+    # umprime passes
+    pass_manager = ir_tools.create_pass_manager()
+    pass_manager.add_pass(ir_tools.create_access_topo_drr_pass("umprime"))
+    pass_manager.add_pass(ir_tools.create_dce_pass())
+    pass_manager.run(program)
     print("before-access_topo_pass", program)
     init_pass_manager = ir_tools.create_pass_manager()
     init_down_spider = topo_drr_pass.InitDownSpiderAccessTopoPass("mm_out")
@@ -349,6 +356,11 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
     mut_program = ir_tools.copy_fused_ops_to_program(
       o.trivial_op, tensor_match_ctx=t
     )
+    # umprime passes
+    pass_manager = ir_tools.create_pass_manager()
+    pass_manager.add_pass(ir_tools.create_access_topo_drr_pass("umprime"))
+    pass_manager.add_pass(ir_tools.create_dce_pass())
+    pass_manager.run(mut_program)
     self._insert_load_from_global(
       mut_program,
       input_names=["mm_out", "input2"]
