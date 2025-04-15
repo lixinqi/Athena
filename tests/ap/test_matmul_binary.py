@@ -3,6 +3,7 @@ import access_topo_drr
 import topo_drr_pass
 import op_convertion_drr_pass
 import matmul_binary_tpl
+import matmul_epilogue_pass
 import ir_tools
 import index_program_translator_util
 import op_compute_translator_util
@@ -11,162 +12,6 @@ import kernel_arg_id_util
 import low_level_ir_code_gen_ctx_util
 import kernel_arg_translator_util
 import pir
-
-class RemoveDataOpPairPass(access_topo_drr.DrrPass):
-  def __init__(self, src_data_op_name, dst_data_op_name):
-    self.src_data_op_name = pir.a_str(src_data_op_name)
-    self.dst_data_op_name = pir.a_str(dst_data_op_name)
-  def source_pattern(self, o, t):
-    o.src_data_op = o.ap_native_op("pd_op.data")
-    o.src_data_op(
-      [],
-      [t.input0]
-    )
-    o.dst_data_op = o.ap_native_op("pd_op.data")
-    o.dst_data_op(
-      [],
-      [t.input1]
-    )
-    o.up_spider_op = o.ap_native_op("ap_op.up_spider")
-    o.up_spider_op(
-      [t.input0, t.input1],
-      []
-    )
-  def constraint(self, o, t):
-    return [o.src_data_op.name, o.dst_data_op.name] == [self.src_data_op_name, self.dst_data_op_name]
-  def result_pattern(self, o, t):
-    pass
-
-class RemoveDataOp2SumOp2DataOpPass(access_topo_drr.DrrPass):
-  def __init__(self, src_data_op_name, dst_data_op_name):
-    self.src_data_op_name = pir.a_str(src_data_op_name)
-    self.dst_data_op_name = pir.a_str(dst_data_op_name)
-
-  def source_pattern(self, o, t):
-    o.src_data_op = o.ap_native_op("pd_op.data")
-    o.src_data_op.name = self.src_data_op_name
-    o.src_data_op(
-      [],
-      [t.input0]
-    )
-    o.full_int_array_op = o.ap_native_op("pd_op.full_int_array")
-    o.full_int_array_op(
-      [],
-      [t.axis]
-    )
-    o.sum_op = o.ap_native_op("pd_op.sum")
-    o.sum_op(
-      [t.input0, t.axis],
-      [t.sum_out]
-    )
-    o.dst_data_op = o.ap_native_op("pd_op.data")
-    o.dst_data_op.name = self.dst_data_op_name
-    o.dst_data_op(
-      [],
-      [t.input1]
-    )
-    o.up_spider_op = o.ap_native_op("ap_op.up_spider")
-    o.up_spider_op(
-      [t.sum_out, t.input1],
-      []
-    )
-    
-  def result_pattern(self, o, t):
-    pass
-
-class RemoveElementInputIndexPass(access_topo_drr.DrrPass):
-
-  def __init__(self, src_data_op_name, dst_load_from_global_op_name):
-    self.src_data_op_name = pir.a_str(src_data_op_name)
-    self.dst_load_from_global_op_name = pir.a_str(dst_load_from_global_op_name)
-
-  def source_pattern(self, o, t):
-    o.src_data_op = o.ap_native_op("pd_op.data")
-    o.src_data_op.name = self.src_data_op_name
-    o.src_data_op(
-      [],
-      [t.src_input]
-    )
-
-    o.dst_load_from_global_op = o.ap_native_op("ap_op.load_from_global")
-    o.dst_load_from_global_op.index_func_unique_id = self.dst_load_from_global_op_name
-    o.dst_load_from_global_op(
-      [t.dst_input],
-      [t.dst_load_from_global_output]
-    )
-    o.up_spider_op = o.ap_native_op("ap_op.up_spider")
-    o.up_spider_op(
-      [t.src_input, t.dst_load_from_global_output],
-      []
-    )
-
-  def result_pattern(self, o, t):
-    pass
-
-class RemoveBroadcastInputIndexPass(access_topo_drr.DrrPass):
-  def __init__(self, src_data_op_name, dst_load_from_global_op_name):
-    self.src_data_op_name = pir.a_str(src_data_op_name)
-    self.dst_load_from_global_op_name = pir.a_str(dst_load_from_global_op_name)
-
-  def source_pattern(self, o, t):
-    o.src_data_op = o.ap_native_op("pd_op.data")
-    o.src_data_op.name = self.src_data_op_name
-    o.src_data_op(
-      [],
-      [t.input0]
-    )
-    o.full_int_array_op = o.ap_native_op("pd_op.full_int_array")
-    o.full_int_array_op(
-      [],
-      [t.axis]
-    )
-    o.sum_op = o.ap_native_op("pd_op.sum")
-    o.sum_op(
-      [t.input0, t.axis],
-      [t.sum_out]
-    )
-    o.dst_load_from_global_op = o.ap_native_op("ap_op.load_from_global")
-    o.dst_load_from_global_op.index_func_unique_id = self.dst_load_from_global_op_name
-    o.dst_load_from_global_op(
-      [t.dst_input],
-      [t.dst_load_from_global_output]
-    )
-    o.up_spider_op = o.ap_native_op("ap_op.up_spider")
-    o.up_spider_op(
-      [t.sum_out, t.dst_load_from_global_output],
-      []
-    )
-    
-  def result_pattern(self, o, t):
-    pass
-
-class RemoveOutputIndexPass(access_topo_drr.DrrPass):
-
-  def __init__(self, src_data_op_name, dst_store_to_global_op_name):
-    self.src_data_op_name = pir.a_str(src_data_op_name)
-    self.dst_store_to_global_op_name = pir.a_str(dst_store_to_global_op_name)
-
-  def source_pattern(self, o, t):
-    o.src_data_op = o.ap_native_op("pd_op.data")
-    o.src_data_op.name = self.src_data_op_name
-    o.src_data_op(
-      [],
-      [t.src_input]
-    )
-    o.dst_store_to_global_op = o.ap_native_op("ap_op.store_to_global")
-    o.dst_store_to_global_op.index_func_unique_id = self.dst_store_to_global_op_name
-    o.dst_store_to_global_op(
-      [t.dst_output, t.dst_output_val],
-      []
-    )
-    o.up_spider_op = o.ap_native_op("ap_op.up_spider")
-    o.up_spider_op(
-      [t.src_input, t.dst_output_val],
-      []
-    )
-
-  def result_pattern(self, o, t):
-    pass
 
 @abstract_drr.register_drr_pass("matmul_binary_fusion", nice=0)
 class MatmulBinaryFusion(abstract_drr.DrrPass):
@@ -209,21 +54,21 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
     pass_manager.run(program)
     print("after-apply-access_topo_pass", program)
     pass_manager = ir_tools.create_pass_manager()
-    remove_data_op_pair_pass = RemoveDataOpPairPass(
+    remove_data_op_pair_pass = matmul_epilogue_pass.RemoveDataOpPairPass(
       src_data_op_name="mm_out",
       dst_data_op_name="input2"
     )
     pass_manager.add_pass(ir_tools.create_access_topo_drr_one_step_pass(
       remove_data_op_pair_pass
     ))
-    remove_data_op2sum_op2data_op_pass = RemoveDataOp2SumOp2DataOpPass(
+    remove_data_op2sum_op2data_op_pass = matmul_epilogue_pass.RemoveDataOp2SumOp2DataOpPass(
       src_data_op_name="mm_out",
       dst_data_op_name="input2"
     )
     pass_manager.add_pass(ir_tools.create_access_topo_drr_one_step_pass(
       remove_data_op2sum_op2data_op_pass
     ))
-    remove_output_pass = RemoveDataOpPairPass(
+    remove_output_pass = matmul_epilogue_pass.RemoveDataOpPairPass(
       src_data_op_name="mm_out",
       dst_data_op_name="output"
     )
@@ -279,7 +124,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
     def MatchAndCopyInputIndex(dst_input_name):
         pass_manager = ir_tools.create_pass_manager()
         removed_programs = MutableList()
-        rm_elementwise_drr_pass = RemoveElementInputIndexPass(
+        rm_elementwise_drr_pass = matmul_epilogue_pass.RemoveElementInputIndexPass(
             src_data_op_name=anchor_data_op_name,
             dst_load_from_global_op_name=dst_input_name
         )
@@ -288,7 +133,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
             matched_pattern_mut_list=removed_programs
         )
         pass_manager.add_pass(rm_elementwise_ir_pass)
-        rm_broadcast_drr_pass = RemoveBroadcastInputIndexPass(
+        rm_broadcast_drr_pass = matmul_epilogue_pass.RemoveBroadcastInputIndexPass(
             src_data_op_name=anchor_data_op_name,
             dst_load_from_global_op_name=dst_input_name
         )
@@ -305,7 +150,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
     def MatchAndCopyOutputIndex(dst_output_name):
         pass_manager = ir_tools.create_pass_manager()
         removed_programs = MutableList()
-        drr_pass = RemoveOutputIndexPass(
+        drr_pass = matmul_epilogue_pass.RemoveOutputIndexPass(
             src_data_op_name=anchor_data_op_name,
             dst_store_to_global_op_name=dst_output_name
         )
