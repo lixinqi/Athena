@@ -22,10 +22,9 @@ int RunWithAutotune(cudaStream_t stream, int config_id, Args &&...args) {
   static std::vector<FuncPtr> matmul_functions =
       GenerateFuncList<Wrapper>(std::make_integer_sequence<int, N>{});
   if (selected_config_id == -1) {
-    selected_config_id = ap::ProfileBestConfig<FuncPtr, Args...>(
-        matmul_functions, stream, std::forward<Args>(args)...);
+    selected_config_id = ap::ProfileBestConfig(matmul_functions, stream,
+                                               std::forward<Args>(args)...);
   } else {
-    std::cout << "selected_config_id: " << selected_config_id << std::endl;
     matmul_functions[selected_config_id](std::forward<Args>(args)...);
   }
 #else
