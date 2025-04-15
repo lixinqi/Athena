@@ -219,7 +219,6 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
       o.trivial_op, tensor_match_ctx=t
     )
     print("before-umprime: ", mut_program)
-    # umprime passes
     pass_manager = ir_tools.create_pass_manager()
     pass_manager.add_pass(ir_tools.create_access_topo_drr_pass("umprime"))
     pass_manager.add_pass(ir_tools.create_dce_pass())
@@ -254,7 +253,7 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
       load_ir_value_name="mm_out",
       register_var_name="x"
     )
-    self._replace_with_store_to_register(mut_program, "output0", "out0")
+    self._replace_with_store_to_register(mut_program, "output0", "out")
     print("mut_program:", mut_program)
     op_compute_translator_maker = op_compute_translator_util.OpComputeTranslatorFactory()
     print('berfore translator')

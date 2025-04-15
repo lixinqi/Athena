@@ -97,11 +97,6 @@ class MatmulBinaryTemplate:
             lambda pair: pair[0].runtime_getter, all_kernel_arg_id_and_unique_names
         )
 
-    def init_outputs(self):
-        out_tensor_data_nums = self.mut_kernel_arg_id_registry.out_tensor_data_ptr_seq_no + 1
-        stmt = map(lambda i: f"out{i}", range(out_tensor_data_nums))
-        return "T " + f", ".join(stmt) + ";"
-
     def get_kernel_arg_types(self):
         all_kernel_arg_id_and_unique_names = (
             self.mut_kernel_arg_id_registry.all_kernel_arg_id2unique_name.items()
@@ -213,9 +208,9 @@ struct VariadicEpilogueFunctor {
   // Note: need to support vectorized operation
   __forceinline__ __host__ __device__
   T operator()(T x, const Arguments& args, const MatrixCoord& coord) const {
-    ${AP_OUTPUTS_INIT}
+    T out;
     ${AP_EPILOGUE_COMPUTATION_STATEMENTS}
-    return out0;
+    return out;
   }
 };
 
@@ -265,7 +260,6 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
             code_template.replace(
                 "${AP_EPILOGUE_COMPUTATION_STATEMENTS}", trivial_code_str
             )
-            .replace("${AP_OUTPUTS_INIT}", self.init_outputs())
             .replace(
                 "${AP_KERNEL_ARGS_DECLARE}",
                 self.get_kernel_arg_list_str(for_declare=True),
