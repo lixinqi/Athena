@@ -73,18 +73,18 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
     pass_manager = ir_tools.create_pass_manager()
     map(lambda dst_name: pass_manager.add_pass(
       ir_tools.create_access_topo_drr_one_step_pass(
-          matmul_epilogue_remove_pass.RemoveDataOpPairPass(src_data_op_name="mm_out", dst_data_op_name=dst_name))), 
+          matmul_epilogue_pass.RemoveDataOpPairPass(src_data_op_name="mm_out", dst_data_op_name=dst_name))), 
           inputs_name_list
     )
     map(lambda dst_name: pass_manager.add_pass(
       ir_tools.create_access_topo_drr_one_step_pass(
-          matmul_epilogue_remove_pass.RemoveDataOp2SumOp2DataOpPass(src_data_op_name="mm_out", dst_data_op_name=dst_name))), 
+          matmul_epilogue_pass.RemoveDataOp2SumOp2DataOpPass(src_data_op_name="mm_out", dst_data_op_name=dst_name))), 
           inputs_name_list
     )
 
     map(lambda dst_name: pass_manager.add_pass(
       ir_tools.create_access_topo_drr_one_step_pass(
-          matmul_epilogue_remove_pass.RemoveDataOpPairPass(src_data_op_name="mm_out", dst_data_op_name=dst_name))), 
+          matmul_epilogue_pass.RemoveDataOpPairPass(src_data_op_name="mm_out", dst_data_op_name=dst_name))), 
           outputs_name_list
     )
     pass_manager.add_pass(ir_tools.create_dce_pass())
@@ -141,7 +141,7 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
     def MatchAndCopyInputIndex(dst_input_name):
         pass_manager = ir_tools.create_pass_manager()
         removed_programs = MutableList()
-        rm_elementwise_drr_pass = matmul_epilogue_remove_pass.RemoveElementInputIndexPass(
+        rm_elementwise_drr_pass = matmul_epilogue_pass.RemoveElementInputIndexPass(
             src_data_op_name=anchor_data_op_name,
             dst_load_from_global_op_name=dst_input_name
         )
@@ -150,7 +150,7 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
             matched_pattern_mut_list=removed_programs
         )
         pass_manager.add_pass(rm_elementwise_ir_pass)
-        rm_broadcast_drr_pass = matmul_epilogue_remove_pass.RemoveBroadcastInputIndexPass(
+        rm_broadcast_drr_pass = matmul_epilogue_pass.RemoveBroadcastInputIndexPass(
             src_data_op_name=anchor_data_op_name,
             dst_load_from_global_op_name=dst_input_name
         )
@@ -168,7 +168,7 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
         print('full_index_program output: ', full_index_program)
         pass_manager = ir_tools.create_pass_manager()
         removed_programs = MutableList()
-        drr_pass = matmul_epilogue_remove_pass.RemoveOutputIndexPass(
+        drr_pass = matmul_epilogue_pass.RemoveOutputIndexPass(
             src_data_op_name=anchor_data_op_name,
             dst_store_to_global_op_name=dst_output_name
         )
