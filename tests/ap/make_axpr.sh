@@ -19,6 +19,7 @@ FILENAMES_ARRAY=(
     "ap_tpl_codegen"
     "matmul_binary_tpl"
     "test_matmul_binary"
+    "test_matmul_epilogue"
 )
 for filename in "${FILENAMES_ARRAY[@]}"
 do

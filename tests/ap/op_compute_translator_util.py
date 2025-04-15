@@ -83,6 +83,56 @@ class ApOpStoreToRegisterCodeGen:
     return register_var_name_attr.match(a_str=lambda x:x)
 
 
+class ApOpStoreToGlobalCodeGen:
+  def __init__(self,
+               op_property,
+               input_properties,
+               output_properties,
+               kernel_arg_translator,
+               index_program_translator_map):
+    self.op_property = op_property
+    self.input_properties = input_properties
+    self.output_properties = output_properties
+    self.kernel_arg_translator = kernel_arg_translator
+    self.index_program_translator_map = index_program_translator_map
+    self.ptr_type2data_type = OrderedDict(
+        [
+            [PointerType.const_float_ptr, "const float"],
+            [PointerType.const_float16_ptr, "const half"],
+            [PointerType.float_ptr, "float"],
+            [PointerType.float16_ptr, "half"],
+        ]
+    )
+
+  def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
+    index_func_unique_id_attr = self.op_property.attributes.index_func_unique_id
+    index_func_unique_id = index_func_unique_id_attr.match(a_str=lambda x:x)
+    offset_var_name = self.index_program_translator_map.get_offset_var_name(
+      index_func_unique_id=index_func_unique_id,
+      mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
+      mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
+    )
+    glb_data_type = self.get_glb_type(mut_kernel_arg_id_registry, index_func_unique_id)
+    ptr_var_name = self.kernel_arg_translator.get_use_name(arg_name)
+    mut_lir_code_gen_ctx.store(glb_data_type, ptr_var_name, offset_var_name, inputs[1].var_name)
+    return []
+
+  def get_glb_type(self, mut_kernel_arg_id_registry, index_func_unique_id):
+    arg_name = mut_kernel_arg_id_registry.get_out_tensor_data_ptr_var_name(index_func_unique_id)
+    kernel_arg_name2ids = OrderedDict(
+      map(
+        lambda item: [item[1], item[0]],
+        mut_kernel_arg_id_registry.generated_kernel_arg_id2unique_name.items()
+      )
+    )
+    kernel_arg_id = kernel_arg_name2ids[arg_name]
+    return self.ptr_type2data_type[kernel_arg_id.type]
+
+  def get_out_var_name(self):
+    register_var_name_attr = self.op_property.attributes.register_var_name
+    return register_var_name_attr.match(a_str=lambda x:x)
+
+
 class PdOpDataCodeGen:
   def __init__(self,
                op_property,

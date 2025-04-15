@@ -23,5 +23,10 @@ class CudaLikeIrCodeGenCtx:
         type_cast_str = "" if is_same else f"static_cast<{self.compute_dtype_name}>"
         self.stmts.append(f"{type_name} {var.var_name} = {type_cast_str}({val_name});")
 
+    def store(self, dtype, dst, offset_var_name, src):
+        is_same = dtype == self.dtype2type_name[self.compute_dtype]
+        type_cast_str = "" if is_same else f"static_cast<{dtype}>"
+        self.stmts.append(f"{dst}[{offset_var_name}] = {type_cast_str}({src});")
+
     def get_stmts_joined_str(self, indent):
         return f"\n{indent}".join([*self.stmts])
