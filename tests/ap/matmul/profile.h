@@ -1,3 +1,5 @@
+#pragma once
+
 #include "matmul.h"
 #include <cuda_profiler_api.h>
 #include <functional>

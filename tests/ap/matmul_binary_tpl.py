@@ -194,8 +194,9 @@ class MatmulBinaryTemplate:
 #include <cuda_fp16.h>
 #include <vector>
 
+#include "autotune.h"
 #include "cutlass_matmul.cuh"
-#include "profile.h"
+#include "math_function.h"
 
 namespace ap {
 
@@ -214,22 +215,23 @@ struct VariadicEpilogueFunctor {
   }
 };
 
-template <int TuningConfigId>
-static void RunMatmulWithVariadicKernel(const GemmEpilogueParams &params, ${AP_KERNEL_ARGS_DECLARE}) {
-  using ElementT = ${output_dtype};
-  using ElementComputeT = float;
+struct MatmulWithVariadicRunner {
+  template <int TuningConfigId>
+  static void Apply(const GemmEpilogueParams &params, ${AP_KERNEL_ARGS_DECLARE}) {
+    using ElementT = ${output_dtype};
+    using ElementComputeT = float;
 
-  typename VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
+    typename VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
 
-  ${AP_EPILOGUE_ARGUMENTS_INIT}
+    ${AP_EPILOGUE_ARGUMENTS_INIT}
 
-  constexpr int AlignA = AP_ALIGNMENT_${output_dtype}(${k_value});
-  constexpr int AlignB = AP_ALIGNMENT_${output_dtype}(${n_value});
+    constexpr int AlignA = AP_ALIGNMENT_${output_dtype}(${k_value});
+    constexpr int AlignB = AP_ALIGNMENT_${output_dtype}(${n_value});
 
-  CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
-                           AlignA, AlignB, TuningConfigId>(params,
-                                                           epilogue_args);
-}
+    CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
+                             AlignA, AlignB, TuningConfigId>(params, epilogue_args);
+  }
+};
 
 } // namespace ap
 
@@ -246,11 +248,8 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
   ap::GemmEpilogueParams params(
       *cuda_stream_ptr, ${input0}, ${input1}, nullptr, ${output}, ${input0}_shape, ${input1}_shape, std::vector<int64_t>{});
 
-#if AP_ENABLE_AUTOTUNE
-  AP_AUTOTUNE_${output_dtype}(ap::RunMatmulWithVariadicKernel, *cuda_stream_ptr, params, ${AP_KERNEL_ARGS_CALL});
-#else
-  ap::RunMatmulWithVariadicKernel<ap::DefaultConfig::kConfigId>(params, ${AP_KERNEL_ARGS_CALL});
-#endif
+  static int selected_config_id = -1;
+  selected_config_id = ap::RunWithAutotune<${output_dtype}, ap::MatmulWithVariadicRunner>(*cuda_stream_ptr, selected_config_id, params, ${AP_KERNEL_ARGS_CALL});
 }
 }
   """

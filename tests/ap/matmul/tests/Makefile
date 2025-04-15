@@ -26,8 +26,9 @@ NVCCFLAGS += -DAP_USE_FLOAT16=${USE_HALF} -DAP_ENABLE_DEBUG=${DEBUG} -DAP_ENABLE
 
 LDFLAGS   := -L./build -l${LIB_NAME} -lcuda -lcudart
 
-# SRCS = native_kernel.cu matmul_unary_kernel.cu matmul_binary_kernel.cu kernel.cu profile.cu
-LIB_SRCS  := $(wildcard ${TESTS_DIR}/*.cu)
+# SRCS = native_kernel.cu matmul_unary_kernel.cu matmul_binary_kernel.cu kernel.cu
+#LIB_SRCS  := $(wildcard ${TESTS_DIR}/*.cu)
+LIB_SRCS  := ${TESTS_DIR}/matmul_binary_kernel.cu ${TESTS_DIR}/test_util.cu
 LIB_OBJS  := $(patsubst ${TESTS_DIR}/%.cu, ${BUILD_DIR}/%.o, ${LIB_SRCS})
 
 TEST_SRCS := $(wildcard ${TESTS_DIR}/test_*.cc)
