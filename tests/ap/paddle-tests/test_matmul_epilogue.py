@@ -23,23 +23,31 @@ import paddle
 from paddle.static import InputSpec
 
 
-def trivial_matrix_binary(x, y, b):
-    out = paddle.matmul(x, y)
-    bias = out - b
-    relu = paddle.nn.functional.relu(out)
-    exp = paddle.exp(relu)
-    return bias, relu, exp
+def matmul_add_left_add(x, y, b, another):
+    mm_out = paddle.matmul(x, y)
+    bias_out = mm_out + b
+    out = bias_out + another
+    return bias_out, out
+
+
+def matmul_add_right_add(x, y, b, another):
+    mm_out = paddle.matmul(x, y)
+    bias_out = mm_out + b
+    out = another + bias_out
+    return bias_out, out
+
 
 class CINNSubGraphNet(paddle.nn.Layer):
     def __init__(self, fn):
         super().__init__()
         self.fn = fn
 
-    def forward(self, x, y, b):
-        out = self.fn(x, y, b)
-        return out
+    def forward(self, x, y, b, another):
+        outs = self.fn(x, y, b, another)
+        return outs
 
-class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
+
+class TestAPMatmulTernary(unittest.TestCase):
     """
     Test Pir API + @to_static + CINN.
     """
@@ -59,30 +67,44 @@ class TestAPMatmulBinaryTriangleShape(unittest.TestCase):
         self.y = paddle.randn(self.y_shape, dtype=self.dtype)
         self.y.stop_gradient = False
 
-        # self.b_shape = [4, 65536, 32]
         self.b_shape = [32]
         self.b = paddle.randn(self.b_shape, dtype=self.dtype)
         self.b.stop_gradient = False
 
-    def eval_symbolic(self, use_cinn, profile):
-        net = CINNSubGraphNet(trivial_matrix_binary)
+        self.another_shape = [32]
+        self.another = paddle.randn(self.another_shape, dtype=self.dtype)
+        self.another.stop_gradient = False
+
+    def eval_symbolic(self, net, use_cinn, profile):
         input_spec = [
             InputSpec(shape=self.x_shape, dtype=self.dtype),
             InputSpec(shape=self.y_shape, dtype=self.dtype),
             InputSpec(shape=self.b_shape, dtype=self.dtype),
+            InputSpec(shape=self.another_shape, dtype=self.dtype),
         ]
         net = utils.apply_to_static(net, use_cinn, input_spec)
         net.eval()
-        out = utils.run_with_profile(profile, net, self.x, self.y, self.b)
+        out = utils.run_with_profile(profile, net, self.x, self.y, self.b, self.another)
         return out
 
-    def test_eval_symbolic(self):
+    def test_matmul_add_right_add(self):
         profile = False
-        cinn_out = self.eval_symbolic(use_cinn=True, profile=profile)
-        dy_out = self.eval_symbolic(use_cinn=False, profile=profile)
+        net = CINNSubGraphNet(matmul_add_right_add)
+        cinn_outs = self.eval_symbolic(net, use_cinn=True, profile=profile)
+        dy_outs = self.eval_symbolic(net, use_cinn=False, profile=profile)
         if not profile:
-            for i,(a,b) in enumerate(zip(cinn_out,dy_out)):
+            for i, (a, b) in enumerate(zip(cinn_outs, dy_outs)):
                 utils.check_result(self.dtype, a.numpy(), b.numpy())
+
+    def test_matmul_add_left_add(self):
+        profile = False
+        net = CINNSubGraphNet(matmul_add_left_add)
+        cinn_outs = self.eval_symbolic(net, use_cinn=True, profile=profile)
+        dy_outs = self.eval_symbolic(net, use_cinn=False, profile=profile)
+        if not profile:
+            for i, (a, b) in enumerate(zip(cinn_outs, dy_outs)):
+                utils.check_result(self.dtype, a.numpy(), b.numpy())
+
 
 if __name__ == "__main__":
     unittest.main()
