@@ -112,6 +112,7 @@ class ApOpStoreToGlobalCodeGen:
       mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
       mut_lir_code_gen_ctx=mut_lir_code_gen_ctx,
     )
+    arg_name = mut_kernel_arg_id_registry.get_out_tensor_data_ptr_var_name(index_func_unique_id)
     glb_data_type = self.get_glb_type(mut_kernel_arg_id_registry, index_func_unique_id)
     ptr_var_name = self.kernel_arg_translator.get_use_name(arg_name)
     mut_lir_code_gen_ctx.store(glb_data_type, ptr_var_name, offset_var_name, inputs[1].var_name)
@@ -587,8 +588,9 @@ class OpComputeTranslatorFactory:
   def __init__(self):
     self.op_name2class = OrderedDict([
       ["ap_op.load_from_register",  ApOpLoadFromRegisterCodeGen],
-      ["ap_op.store_to_register",   ApOpStoreToRegisterCodeGen],
       ["ap_op.load_from_global",    ApOpLoadFromGlobalCodeGen],
+      ["ap_op.store_to_register",   ApOpStoreToRegisterCodeGen],
+      ["ap_op.store_to_global",     ApOpStoreToGlobalCodeGen],
       ["pd_op.data",                PdOpDataCodeGen],
       ["pd_op.full",                PdOpFullCodeGen],
       ["pd_op.cast",                PdOpCastCodeGen],

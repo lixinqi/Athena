@@ -201,11 +201,11 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
     mut_program = ir_tools.copy_fused_ops_to_program(
       o.trivial_op, tensor_match_ctx=t
     )
-    # umprime passes
     pass_manager = ir_tools.create_pass_manager()
     pass_manager.add_pass(ir_tools.create_access_topo_drr_pass("umprime"))
     pass_manager.add_pass(ir_tools.create_dce_pass())
     pass_manager.run(mut_program)
+    print("after-umprime:\n", mut_program)
     self._insert_load_from_global(
       mut_program,
       input_names=["mm_out", "input2"]
@@ -214,6 +214,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
       mut_program,
       output_names=["output"]
     )
+    print("after-insert_load_and_store:\n", mut_program)
     kernel_arg_translator = self._make_kernel_arg_translator()
     index_func_unique_id2index_program = self._make_index_func_unique_id2index_program(
       mut_program,
