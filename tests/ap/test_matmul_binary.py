@@ -2,7 +2,7 @@ import abstract_drr
 import access_topo_drr
 import topo_drr_pass
 import op_convertion_drr_pass
-import matmul_binary_tpl
+import matmul_variadic_tpl
 import matmul_epilogue_pass
 import ir_tools
 import index_program_translator_util
@@ -102,7 +102,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
     init_pass_manager.run(program)
 
   def _make_kernel_arg_translator(self):
-    return matmul_binary_tpl.make_kernel_arg_translator()
+    return matmul_variadic_tpl.make_kernel_arg_translator()
 
   def _apply_topo_access_passes(self, mut_program, anchor_data_op_name):
     init_pass_manager = ir_tools.create_pass_manager()
@@ -226,7 +226,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
     index_program_translator_map = index_program_translator_util.IndexProgramTranslatorMap(
       index_func_unique_id2index_program=index_func_unique_id2index_program,
       kernel_arg_translator=kernel_arg_translator,
-      anchor_iter_var_names=matmul_binary_tpl.get_anchor_iter_var_names()
+      anchor_iter_var_names=matmul_variadic_tpl.get_anchor_iter_var_names()
     )
     self._replace_with_load_from_register(
       mut_program,
@@ -255,7 +255,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
       tensor_match_ctx=t,
       name_prefix=""
     )
-    template_module = matmul_binary_tpl.MatmulBinaryTemplate(
+    template_module = matmul_variadic_tpl.MatmulVariadicTemplate(
       program_translator=program_translator,
       mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
     )
