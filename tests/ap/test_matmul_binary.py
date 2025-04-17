@@ -227,7 +227,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
     index_program_translator_map = index_program_translator_util.IndexProgramTranslatorMap(
       index_func_unique_id2index_program=index_func_unique_id2index_program,
       kernel_arg_translator=kernel_arg_translator,
-      anchor_iter_var_names=matmul_binary_tpl.get_anchor_iter_var_names(),
+      anchor_iter_var_names=matmul_binary_tpl.get_anchor_iter_var_names(mm_out_symbolic_shape),
       anchor_iter_dim_splits=matmul_binary_tpl.get_anchor_iter_dim_splits(mm_out_symbolic_shape),
     )
     self._replace_with_load_from_register(

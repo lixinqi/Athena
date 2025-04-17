@@ -41,7 +41,6 @@ class IndexProgramTranslatorMap:
     pass_manager.add_pass(ir_tools.create_access_topo_drr_one_step_pass(drr_pass))
     pass_manager.add_pass(ir_tools.create_dce_pass())
     pass_manager.run(index_program)
-    print(f"index_program_with_reshape: {index_program}")
     return IndexProgramTranslator(
       index_program,
       program_id=program_id,
