@@ -25,7 +25,7 @@ def get_anchor_iter_dim_splits(symbolic_shape):
     return map(lambda i: get_dim_split(i), range(num_anchor_iters))
 
 
-class MatmulBinaryTemplate:
+class MatmulVariadicTemplate:
     def __init__(
         self,
         program_translator,
@@ -46,8 +46,8 @@ class MatmulBinaryTemplate:
             ]
         )
         self.input_dim_karg_to_shape_access = MutableOrderedDict()
-        self.kernel_name = "MatmulBinaryKernel"
-        self.library_name = "matmul_binary_kernel"
+        self.kernel_name = "MatmulVariadicKernel"
+        self.library_name = "matmul_variadic_kernel"
 
     def _register_name(self, pair):
         registry = self.mut_kernel_arg_id_registry
@@ -348,7 +348,7 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
 
 
 def KernelDispatch(ctx):
-    so_func = ctx.get_so_function("MatmulBinaryKernel")
+    so_func = ctx.get_so_function("MatmulVariadicKernel")
     stream_ptr = ctx.device_ctx.get_stream_addr_as_void_ptr()
     getters = ctx.kernel_dispatch_const_data.kernel_args_getters
     args = [stream_ptr, *map(lambda getter: getter(ctx), getters)]
