@@ -49,13 +49,15 @@ void MatmulAddBinaryKernel(
     cudaStream_t *stream, const void *input, const void *weight,
     const void *bias, void *output,
     const std::vector<const void *> &epilogue_ins,
+    const std::vector<void *> &epilogue_outs,
     const std::vector<int64_t> &input_shape,
     const std::vector<int64_t> &weight_shape,
     const std::vector<int64_t> &bias_shape,
-    const std::vector<std::vector<int64_t>> &epilogue_shapes) {
+    const std::vector<std::vector<int64_t>> &epilogue_in_shapes,
+    const std::vector<std::vector<int64_t>> &epilogue_out_shapes) {
   GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
                             weight_shape, bias_shape);
-  params.SetEpilogueAndShapes(epilogue_ins, epilogue_shapes);
+  params.SetEpilogueAndShapes(epilogue_ins, epilogue_in_shapes, epilogue_outs, epilogue_out_shapes);
 
   static int selected_config_id = -1;
 #if AP_USE_FLOAT16

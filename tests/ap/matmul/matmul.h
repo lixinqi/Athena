@@ -89,7 +89,9 @@ struct GemmEpilogueParams {
   std::vector<int64_t> input0_shape;
   std::vector<int64_t> input1_shape;
   std::vector<const void *> epilogue_in_ptrs;
+  std::vector<void *> epilogue_out_ptrs;
   std::vector<std::vector<int64_t>> epilogue_in_shapes;
+  std::vector<std::vector<int64_t>> epilogue_out_shapes;
 
   GemmEpilogueParams() {}
   GemmEpilogueParams(cudaStream_t stream, const void *input, const void *weight,
@@ -156,16 +158,23 @@ struct GemmEpilogueParams {
     shape_args.ldc_bias = (!bias || is_C_bias) ? 0 : n;
   }
 
-  void SetEpilogues(const std::vector<const void *> &in_ptrs) {
+  void SetEpilogues(const std::vector<const void *> &in_ptrs, 
+                    const std::vector< void *> &out_ptrs) {
     epilogue_in_ptrs = in_ptrs;
+    epilogue_out_ptrs = out_ptrs;
   }
 
   void
   SetEpilogueAndShapes(const std::vector<const void *> &in_ptrs,
-                       const std::vector<std::vector<int64_t>> &in_shapes) {
+                       const std::vector<std::vector<int64_t>> &in_shapes,
+                       const std::vector<void *> &out_ptrs,
+                       const std::vector<std::vector<int64_t>> &out_shapes) {
     ASSERT_CHECK(in_ptrs.size() == in_shapes.size());
     epilogue_in_ptrs = in_ptrs;
     epilogue_in_shapes = in_shapes;
+    ASSERT_CHECK(out_ptrs.size() == out_shapes.size());
+    epilogue_out_ptrs = out_ptrs;
+    epilogue_out_shapes = out_shapes;
   }
 };
 
