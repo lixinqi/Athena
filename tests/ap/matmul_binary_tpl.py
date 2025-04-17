@@ -10,6 +10,14 @@ def get_anchor_iter_var_names():
     return ["coord.batch", "coord.row", "coord.column"]
 
 
+def get_anchor_iter_dim_splits(symbolic_shape):
+    num_anchor_iters = len(get_anchor_iter_var_names())
+    diff = len(symbolic_shape) - num_anchor_iters
+    def get_dim_split(i):
+        return diff + 1 if i < diff else 1
+    return map(lambda i: get_dim_split(i), range(num_anchor_iters))
+
+
 class MatmulBinaryTemplate:
     def __init__(
         self,
