@@ -19,6 +19,7 @@ class PdOpDataCodeGen:
     self.anchor_iter_dim_splits = anchor_iter_dim_splits
 
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
+    assert len(self.anchor_iter_var_names) == len(self.anchor_iter_dim_splits), "The length of anchor_iter_var_names and anchor_iter_dim_splits is expected to be the same."
     return [index_code_gen_value_util.IndexCodeGenValue(
       self.anchor_iter_var_names,
       self.anchor_iter_dim_splits
@@ -86,12 +87,8 @@ class PdOpSumCodeGen:
         lambda dim: is_reduced_axes(dim), range(dim_split_start, dim_split_stop)
       ) 
       return False if len(is_reduced_axes_result) == 0 else True
-    anchor_reduced_axes_set = OrderedDict(
-      map(lambda i: [i, is_anchor_reduced_axes(i)],
-      range(len(input_iter_dim_splits)))
-    )
     anchor_non_reduced_axes = filter(
-      lambda x: anchor_reduced_axes_set[x] == False,
+      lambda i: is_anchor_reduced_axes(i) == False,
       range(len(input_iter_var_names))
     )
     output_iter_var_names = map(
