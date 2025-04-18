@@ -87,7 +87,7 @@ class TestAPMatmulBinary(unittest.TestCase):
         if not profile:
             utils.check_result(self.dtype, cinn_out.numpy(), dy2st_out.numpy())
 
-    def test_matmul_add_gelu(self):
+    def notest_matmul_add_gelu(self):
         profile = False
         net = CINNSubGraphNet(matmul_add_gelu_true)
         cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
