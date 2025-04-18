@@ -162,6 +162,32 @@ class ConvertUpSpiderStoreDataOpToYieldOpPass(access_topo_drr.DrrPass):
       []
     )
 
+class ConvertDownSpiderStoreDataOpToYieldOpPass(access_topo_drr.DrrPass):
+
+  def source_pattern(self, o, t):
+    o.data_mm_op = o.ap_native_op("pd_op.data")
+    o.data_mm_op(
+      [],
+      [t.input1]
+    )
+    o.down_spider_op = o.ap_native_op("ap_op.down_spider")
+    o.down_spider_op(
+      [t.input1],
+      [t.tmp1]
+    )
+    o.store_to_global = o.ap_native_op("ap_op.store_to_global")
+    o.store_to_global(
+      [t.input0, t.tmp1],
+      []
+    )
+
+  def result_pattern(self, o, t):
+    o.yield_op = o.ap_native_op("cf.yield")
+    o.yield_op(
+      [t.input0],
+      []
+    )
+
 class InitDownSpiderAccessTopoPass(access_topo_drr.DrrPass):
 
   def __init__(self, data_input_name):
