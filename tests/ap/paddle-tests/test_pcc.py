@@ -85,7 +85,6 @@ class TestPCCMatmulBinary(unittest.TestCase):
             y: pct.Tensor([K, N], DType),
             b: pct.Tensor([N], DType),
         ):
-            @pcc.force_register_fusion
             def epilogue(out):
                 return paddle.nn.functional.relu(out + b)
 
