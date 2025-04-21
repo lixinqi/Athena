@@ -272,20 +272,28 @@ class CinnTestBase:
 
     def _test_entry(self):
         flag_test_acc = os.getenv('FLAGS_test_accuracy')
-        if flag_test_acc is not None and flag_test_acc == '0':
+        if flag_test_acc is None:
+            _, dy_outs = self.train(use_cinn=False)
+            _, ap_outs = self.train(use_cinn=True)
+            for dy_out, cinn_out in zip(dy_outs, ap_outs):
+                if type(cinn_out) is list and type(dy_out) is list:
+                    for x, y in zip(dy_out, cinn_out):
+                        self.assert_all_close(cinn_out, dy_out)
+                elif cinn_out is not None:
+                    self.assert_all_close(cinn_out, dy_out)
+        else if flag_test_acc == '0':
             pass
         else:
-            # test acc
-            dy_net, dy_outs = self.train(use_cinn=False)
-            ap_net, ap_outs = self.train(use_cinn=True)
+            # calculate mean/max output diviation(error)
+            _, dy_outs = self.train(use_cinn=False)
+            _, ap_outs = self.train(use_cinn=True)
             for dy_out, cinn_out in zip(dy_outs, ap_outs):
                 if type(cinn_out) is list and type(dy_out) is list:
                     for x, y in zip(dy_out, cinn_out):
                         self.cal_rms(x, y)
                 elif cinn_out is not None:
-                    # self.assert_all_close(cinn_out, dy_out)
                     self.cal_rms(dy_out, cinn_out)
-        def measure_time(net, num_tests=150):
+        def measure_time(net, num_tests=100):
             flag_num_tests = os.getenv('FLAGS_num_tests')
             if flag_num_tests is not None:
                 num_tests = int(flag_num_tests)
@@ -301,10 +309,10 @@ class CinnTestBase:
         if flag_comp_perf is None:
             pass
         else if flag_comp_perf == '0':
-            dy_net, dy_outs = self.train(use_cinn=False)
+            dy_net, _ = self.train(use_cinn=False)
             measure_time(dy_net)
         else if flag_comp_perf == '1':
-            ap_net, ap_outs = self.train(use_cinn=True)
+            ap_net, _ = self.train(use_cinn=True)
             measure_time(ap_net)
         else:
             raise NotImplementedError("FLAGS_ap_performance should be set to 0 or 1.")
