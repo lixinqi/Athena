@@ -298,12 +298,16 @@ class CinnTestBase:
                 net(*self.inputs)
             paddle.base.core.nvprof_stop()
         flag_comp_perf = os.getenv('FLAGS_ap_performance')
-        if flag_comp_perf is not None and flag_comp_perf == '0':
+        if flag_comp_perf is None:
+            pass
+        else if flag_comp_perf == '0':
             dy_net, dy_outs = self.train(use_cinn=False)
             measure_time(dy_net)
-        else:
+        else if flag_comp_perf == '1':
             ap_net, ap_outs = self.train(use_cinn=True)
             measure_time(ap_net)
+        else:
+            raise NotImplementedError("FLAGS_ap_performance should be set to 0 or 1.")
 
     def train(self, use_cinn):
         sub_graph_layer = SubGraphLayer()
