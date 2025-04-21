@@ -36,6 +36,9 @@ template <int SwizzleFactor, bool Batched> struct SwizzleWrapper {
     matmul_functions[selected_config_id](__VA_ARGS__);                         \
   }
 
+#define AP_AUTOTUNE___nv_bfloat16(func, stream, ...)                           \
+  AP_AUTOTUNE_half(func, stream, __VA_ARGS__)
+
 #define AP_AUTOTUNE_float(func, stream, ...)                                   \
   {                                                                            \
     using FuncType = decltype(func<0>);                                        \
