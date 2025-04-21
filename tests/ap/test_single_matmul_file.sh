@@ -1,6 +1,6 @@
 #!/bin/bash
 set -x
-export CUDA_VISIBLE_DEVICES="3"
+export CUDA_VISIBLE_DEVICES="5"
 export NVIDIA_TF32_OVERRIDE=0
 sh make_axpr.sh test_matmul_epilogue
 FILE_NUM=$1
