@@ -85,7 +85,7 @@ class TestAPMatmulBinary(unittest.TestCase):
         cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
         dy2st_out = self.eval_symbolic(net, use_cinn=False, profile=profile)
         if not profile:
-            utils.check_result(self.dtype, cinn_out.numpy(), dy2st_out.numpy())
+            utils.check_result(self.dtype, cinn_out, dy2st_out)
 
     def notest_matmul_add_gelu(self):
         profile = False
@@ -93,7 +93,7 @@ class TestAPMatmulBinary(unittest.TestCase):
         cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
         dy2st_out = self.eval_symbolic(net, use_cinn=False, profile=profile)
         if not profile:
-            utils.check_result(self.dtype, cinn_out.numpy(), dy2st_out.numpy())
+            utils.check_result(self.dtype, cinn_out, dy2st_out)
 
 
 if __name__ == "__main__":
