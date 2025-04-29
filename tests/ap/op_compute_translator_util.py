@@ -201,6 +201,7 @@ class PdOpCastCodeGen:
         [
             [DataType.float,   "float"],
             [DataType.float16,  "half"],
+            [DataType.bfloat16, "__nv_bfloat16"],
             [DataType.int32,     "int"],
             [DataType.int64, "int64_t"],
         ]

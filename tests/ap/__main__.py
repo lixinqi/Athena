@@ -2,3 +2,4 @@
 # import test_binary_trivial_reduce
 import test_matmul_binary
 import test_matmul_epilogue
+import test_moeunzip
