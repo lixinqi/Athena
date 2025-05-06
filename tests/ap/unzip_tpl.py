@@ -82,7 +82,7 @@ class MoeUnzipVariadicTemplate:
         map(self._register_name, kargs_name_pair_list)
 
         mut_lir_code_gen_ctx = low_level_ir_code_gen_ctx_util.CudaLikeIrCodeGenCtx(
-            compute_dtype=DataType.float
+            compute_dtype=DataType.bfloat16
         )
         self.program_translator.translate(
             mut_kernel_arg_id_registry=self.mut_kernel_arg_id_registry,
@@ -225,14 +225,35 @@ class MoeUnzipVariadicTemplate:
 #include "moe_unzip.cuh"
 #include <iostream>
 
+namespace ap{
 
+template <typename T>
+struct MoeUnzipEpilogueFunctor {
+  struct Arguments {
+    ${AP_EPILOGUE_ARGUMENTS_FIELDS}
+  };
+
+  // Note: need to support vectorized operation
+  __forceinline__ __host__ __device__
+  T operator()(T x) const {
+    T out;
+    ${AP_EPILOGUE_COMPUTATION_STATEMENTS}
+    return out;
+  }
+};
+
+}// namespace ap
 
 extern "C" {
 
 void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
+  using ElementT = ${output_dtype};
+  using ElementComputeT = float;
+
   cudaStream_t* cuda_stream_ptr = reinterpret_cast<cudaStream_t*>(stream_ptr);
   std::cout << "start tokens_unzip_stable_kernel" << std::endl;
-  ap::tokens_unzip_stable(*cuda_stream_ptr, ${input0}, ${input1}, ${input2}, ${input3}, 384, 8, 4, ${output0}, ${output1}, ${output2}, ${output3}, (int*)${tmp_space}, ${rows}, ${output_rows}, ${cols});
+  ap::tokens_unzip_stable<ElementT, ElementT, ap::MoeUnzipEpilogueFunctor>(*cuda_stream_ptr, ${input0}, ${input1}, ${input2}, ${input3}, 384, 8, 4, ${output0}, ${output1}, ${output2}, ${output3}, (int*)${tmp_space}, ${rows}, ${output_rows}, ${cols});
+   
 }
 }
   """
@@ -243,6 +264,13 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
             .replace(
                 "${AP_KERNEL_ARGS_DECLARE}",
                 self.get_kernel_arg_list_str(for_declare=True),
+            )
+            .replace(
+                "${AP_EPILOGUE_ARGUMENTS_FIELDS}",
+                self.get_epilogue_arguments_fields_str(indent="    "),
+            )
+            .replace(
+                "${AP_EPILOGUE_COMPUTATION_STATEMENTS}", trivial_code_str
             )
             .replace("${kernel_name}", self.kernel_name)
             .replace("${input0}", self.get_kernel_arg_id_var_name(input0_karg))
@@ -257,6 +285,7 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
             .replace("${rows}", f"{input0_shape_kargs[0].value}")
             .replace("${output_rows}", f"{output_shape_kargs[0].value}")
             .replace("${cols}", f"{input0_shape_kargs[1].value}")
+            .replace("${output_dtype}", output_dtype)
         )
 
         source_dir = "/workspace/Athena/tests/ap/moe_utils"

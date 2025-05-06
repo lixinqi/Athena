@@ -69,7 +69,6 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     pass_manager.run(mut_program)
 
   def _simplify_index_program(self, mut_program):
-      # 创建一个Pass管理器
     pass_manager = ir_tools.create_pass_manager()
     drr_pass = topo_drr_pass.ConvertUpSpiderStoreDataOpToYieldOpPass()
     pass_manager.add_pass(ir_tools.create_access_topo_drr_one_step_pass(drr_pass))
@@ -162,7 +161,7 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     print("after-umprime:\n", mut_program)
     self._insert_load_from_global(
       mut_program,
-      input_names=["unzip_out0", "input4"]
+      input_names=["unzip_tmp"]
     )
     self._insert_store_to_global(
       mut_program,
@@ -172,8 +171,8 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     kernel_arg_translator = self._make_kernel_arg_translator()
     index_func_unique_id2index_program = self._make_index_func_unique_id2index_program(
       mut_program,
-      anchor_data_op_name="unzip_out0",
-      input_names=["input4"],
+      anchor_data_op_name="unzip_tmp",
+      input_names=[],
       output_names=[],
     )
     print("index_func_unique_id2index_program:\n", index_func_unique_id2index_program)
@@ -184,7 +183,7 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     )
     self._replace_with_load_from_register(
       mut_program,
-      load_ir_value_name="unzip_out0",
+      load_ir_value_name="unzip_tmp",
       register_var_name="x"
     )
     self._replace_with_store_to_register(
@@ -204,7 +203,6 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
 
   def code_gen(self, ctx, o, t):
     program_translator = self._get_program_translator(ctx, o, t)
-    print("program_translator is\n", program_translator)
     mut_kernel_arg_id_registry = kernel_arg_id_util.KernelArgIdNameRegistry(
       code_gen_ctx=ctx,
       tensor_match_ctx=t,

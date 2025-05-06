@@ -39,7 +39,7 @@ def unzip(x, xscale, expert_routemap_topk, expert_prob_topk, topk, num_experts, 
 def unzip_relu(x, xscale, expert_routemap_topk, expert_prob_topk, topk, num_experts, max_tokens_per_expert):
     topk = 8
     num_experts = 4
-    # max_tokens_per_expert = 1024
+    max_tokens_per_expert = 1024
     
     out, _, _, _ = _C_ops._moe_unzip(x, xscale, expert_routemap_topk, expert_prob_topk, max_tokens_per_expert, topk, num_experts)
 
@@ -81,8 +81,7 @@ class TestAPUnzipBinary(unittest.TestCase):
         self.max_tokens_per_expert = paddle.to_tensor(1024).astype("int32")
 
         self.x_shape = [512, 2048]
-        x_np = np.random.random((self.x_shape)).astype("uint16")
-        self.x = paddle.to_tensor(x_np).astype("bfloat16")
+        self.x = paddle.randn(self.x_shape, dtype=self.dtype)
 
         self.xscale_shape = [512, 16]
         xs_np = np.random.normal(loc=1.0, scale=0.2, size=self.xscale_shape).astype("float32")
@@ -119,8 +118,7 @@ class TestAPUnzipBinary(unittest.TestCase):
         net = CINNSubGraphNet(unzip_relu)
         cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
         print(f'{cinn_out.numpy().shape=}')
-        print(f'{cinn_out.numpy().astype("uint16")=}')
-        print(f'{self.x.numpy().astype("uint16")=}')
+        print(f'{cinn_out=}')
         # dy2st_out = self.eval_symbolic(net, use_cinn=False, profile=profile)
         # if not profile:
         #     utils.check_result(self.dtype, cinn_out.numpy(), dy2st_out.numpy())

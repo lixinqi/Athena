@@ -17,7 +17,7 @@ struct alignas(16) VectorType {
 // 128Byte对齐的结构体
 template <>
 struct alignas(16) VectorType<float, 4> {
-  float4 data;  // Built-in CUDA vector type
+  float data[4];  // Built-in CUDA vector type
 };
 
 template <>
@@ -67,12 +67,55 @@ __device__ __forceinline__ void vectorized_memcpy(const T* src,
   }
 }
 
+// Helper function to perform vectorized memory copy
+template <typename ElementT,
+          typename ElementComputeT,
+          template<typename T> class VariadicFunctor>
+__device__ __forceinline__ void vectorized_memcpy_epilogue(const ElementT* src,
+                                                  ElementT* dst,
+                                                  int num_elements) {
+  constexpr int vector_size_in_bytes = 16;
+  const int elements_per_vector = vector_size_in_bytes / sizeof(ElementT);
+
+  // 已知单行token向量化不会超过4G大小，用int节省整数开销
+  int num_vectors = num_elements / elements_per_vector;
+  int remaining_elements = num_elements % elements_per_vector;
+
+  using VecType = VectorType<ElementT, elements_per_vector>;
+  const VecType* src_vec = reinterpret_cast<const VecType*>(src);
+  VecType* dst_vec = reinterpret_cast<VecType*>(dst);
+
+  VariadicFunctor<ElementComputeT> functor;
+
+// 已知paddle框架中的显存分配均为256Bytes对齐，所以默认align
+#pragma unroll
+  for (int idx = threadIdx.x; idx < num_vectors; idx += blockDim.x) {
+    ElementT tmp[elements_per_vector];
+    auto tmp_src = src_vec[idx];
+    for(int k = 0; k < elements_per_vector; k ++){
+      tmp[k] = functor(tmp_src.data[k]);
+    }
+    dst_vec[idx] = *reinterpret_cast<const VecType*>(tmp);
+  }
+  
+  // 剩余无法向量化处理的元素
+  if (remaining_elements > 0) {
+    int offset = num_vectors * elements_per_vector;
+    for (int i = threadIdx.x; i < remaining_elements; i += blockDim.x) {
+      dst[offset + i] = functor(src[offset + i]);
+    }
+  }
+}
+
 // 多阶段算法，控制每block处理的行数来权衡额外开销
 //  首先解析routemap来更新专家当前所收到的token数，然后check前一个block给的前缀和并更新给下一个block
 //  随后，目的行号的信息已获取，立即开始搬运工作，直至任务完全完成
 template <typename X_T,
           typename routemap_T,
           typename probs_T,
+          typename ElementT,
+          typename ElementComputeT,
+          template<typename T> class VariadicFunctor,
           int topk,
           int num_experts,
           bool has_scale>
@@ -190,13 +233,16 @@ __global__ void tokens_unzip_stable_kernel(
                           &XScale_unzipped[unzipped_row_idx * scale_length],
                           scale_length);
       }
-      vectorized_memcpy(&X[row * token_length],
+      vectorized_memcpy_epilogue<ElementT, ElementComputeT, VariadicFunctor>(&X[row * token_length],
                         &X_unzipped[unzipped_row_idx * token_length],
                         token_length);
     }
   }
 }
 
+template<typename ElementT,
+        typename ElementComputeT,
+        template<typename T> class VariadicFunctor>
 void tokens_unzip_stable(
     cudaStream_t stream,
     const __nv_bfloat16 *__restrict__ X,
@@ -237,6 +283,7 @@ void tokens_unzip_stable(
   auto kernel = tokens_unzip_stable_kernel<__nv_bfloat16,
                                            int,
                                            float,
+                                           ElementT, ElementComputeT, VariadicFunctor,
                                            8,
                                            4,
                                            false>;
