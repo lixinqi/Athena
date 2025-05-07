@@ -23,10 +23,13 @@ class MatmulVariadicTemplate:
             [
                 [PointerType.const_float_ptr, "const float*"],
                 [PointerType.const_float16_ptr, "const half*"],
+                [PointerType.const_bfloat16_ptr, "const nv_bfloat16*"],
                 [PointerType.float_ptr, "float*"],
                 [PointerType.float16_ptr, "half*"],
+                [PointerType.bfloat16_ptr, "nv_bfloat16*"],
                 [DataType.float, "float"],
                 [DataType.float16, "half"],
+                [DataType.bfloat16, "nv_bfloat16"],
                 [DataType.int64_t, "int64_t"],
             ]
         )
@@ -192,9 +195,11 @@ class MatmulVariadicTemplate:
 // auto generated codes
 #include <cuda.h>
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
 #include <vector>
 
 #include "cutlass_matmul.cuh"
+#include "math_function.h"
 #include "profile.h"
 
 namespace ap {
@@ -223,12 +228,11 @@ static void RunMatmulWithVariadicKernel(const GemmEpilogueParams &params, ${AP_K
 
   ${AP_EPILOGUE_ARGUMENTS_INIT}
 
-  constexpr int AlignA = AP_ALIGNMENT_${output_dtype}(${k_value});
-  constexpr int AlignB = AP_ALIGNMENT_${output_dtype}(${n_value});
+  constexpr int AlignA = Alignment<ElementT, ${k_value}>::kValue;
+  constexpr int AlignB = Alignment<ElementT, ${n_value}>::kValue;
 
   CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
-                           AlignA, AlignB, TuningConfigId>(params,
-                                                           epilogue_args);
+                           AlignA, AlignB, TuningConfigId>(params, epilogue_args);
 }
 
 } // namespace ap

@@ -199,10 +199,11 @@ class PdOpCastCodeGen:
     self.index_program_translator_map = index_program_translator_map
     self.dtype2type_name = OrderedDict(
         [
-            [DataType.float,   "float"],
-            [DataType.float16,  "half"],
-            [DataType.int32,     "int"],
-            [DataType.int64, "int64_t"],
+            [DataType.float,          "float"],
+            [DataType.float16,         "half"],
+            [DataType.bfloat16, "nv_bfloat16"],
+            [DataType.int32,            "int"],
+            [DataType.int64,        "int64_t"],
         ]
     )
 

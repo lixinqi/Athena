@@ -43,7 +43,7 @@ class TestPCCMatmulBinary(unittest.TestCase):
         self.prepare_data()
 
     def prepare_data(self):
-        self.dtype = "float16"
+        self.dtype = "bfloat16"
 
         self.x_shape = [4, 65536, 128]
         self.x = paddle.randn(self.x_shape, dtype=self.dtype)
@@ -101,7 +101,7 @@ class TestPCCMatmulBinary(unittest.TestCase):
         ap_out = self.run_with_pcc(profile=profile)
         dy2st_out = self.run_with_dy2st(profile=profile)
         if not profile:
-            utils.check_result(self.dtype, ap_out.numpy(), dy2st_out.numpy())
+            utils.check_result(self.dtype, ap_out, dy2st_out)
 
 
 if __name__ == "__main__":
