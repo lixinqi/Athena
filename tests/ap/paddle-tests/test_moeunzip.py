@@ -32,7 +32,7 @@ def unzip(x, xscale, expert_routemap_topk, expert_prob_topk, topk, num_experts, 
     topk = 8
     num_experts = 4
     
-    out, _, _, _ = _C_ops._moe_unzip(x, xscale, expert_routemap_topk, expert_prob_topk, max_tokens_per_expert, topk, num_experts)
+    out, _, _, _, _ = _C_ops._moe_unzip(x, xscale, expert_routemap_topk, expert_prob_topk, max_tokens_per_expert, topk, num_experts)
 
     return out
 
@@ -41,7 +41,7 @@ def unzip_relu(x, xscale, expert_routemap_topk, expert_prob_topk, topk, num_expe
     num_experts = 4
     max_tokens_per_expert = 1024
     
-    out, _, _, _ = _C_ops._moe_unzip(x, xscale, expert_routemap_topk, expert_prob_topk, max_tokens_per_expert, topk, num_experts)
+    out, _, _, _, _ = _C_ops._moe_unzip(x, xscale, expert_routemap_topk, expert_prob_topk, max_tokens_per_expert, topk, num_experts)
 
     return paddle.nn.functional.relu(out)
 
@@ -49,7 +49,7 @@ def unzip_add_relu(x, xscale, expert_routemap_topk, expert_prob_topk, topk, num_
     topk = 8
     num_experts = 4
     
-    out, _, _, _ = _C_ops._moe_unzip(x, xscale, expert_routemap_topk, expert_prob_topk, max_tokens_per_expert, topk, num_experts)
+    out, _, _, _, _ = _C_ops._moe_unzip(x, xscale, expert_routemap_topk, expert_prob_topk, max_tokens_per_expert, topk, num_experts)
 
     return paddle.nn.functional.relu(out + b)
 
@@ -126,4 +126,3 @@ class TestAPUnzipBinary(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

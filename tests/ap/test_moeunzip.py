@@ -21,7 +21,7 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     # use unzip_out0 as tmp space
     o.unzip_op(
         [t.input0, t.input1, t.input2, t.input3, t.input4],
-        [t.unzip_tmp, t.unzip_out1, t.unzip_out2, t.unzip_out3]
+        [t.unzip_tmp, t.unzip_out1, t.unzip_out2, t.unzip_out3, t.unzip_out4]
     )
 
     o.trivial_op = o.ap_trivial_fusion_op()
@@ -32,7 +32,7 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
 
   def result_pattern(self, o, t):
     o.fustion_op = o.ap_pattern_fusion_op(self.code_gen)
-    o.fustion_op([t.input0, t.input1, t.input2, t.input3, t.input4], [t.output, t.unzip_out1, t.unzip_out2, t.unzip_out3, t.unzip_tmp])
+    o.fustion_op([t.input0, t.input1, t.input2, t.input3, t.input4], [t.output, t.unzip_out1, t.unzip_out2, t.unzip_out3, t.unzip_out4, t.unzip_tmp])
 
   def constraint(self, o, t):
     return True
@@ -231,4 +231,3 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
         input0_shape_kargs=input0_shape_kargs,
         output_shape_kargs=output_shape_kargs,
     )
-
