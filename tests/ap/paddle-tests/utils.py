@@ -41,8 +41,15 @@ def run_with_profile(enabled, func, *args):
 
 
 def check_result(dtype, out_1, out_2, check_equal=False):
-    out_1_flatten = out_1.flatten()
-    out_2_flatten = out_2.flatten()
+    def get_flattened_array(out):
+        if isinstance(out, paddle.Tensor):
+            if out.dtype == paddle.bfloat16:
+                res = paddle.cast(out, dtype="float32").numpy()
+            else:
+                res = out.numpy()
+        return res.flatten()
+    out_1_flatten = get_flattened_array(out_1)
+    out_2_flatten = get_flattened_array(out_2)
 
     diff = np.abs(out_1_flatten - out_2_flatten)
     max_atol_idx = np.argmax(diff)
@@ -73,6 +80,8 @@ def check_result(dtype, out_1, out_2, check_equal=False):
             else:
                 atol, rtol = 1e-3, 1e-3
         elif dtype == "float16":
+            atol, rtol = 1e-3, 1e-3
+        elif dtype == "bfloat16":
             atol, rtol = 1e-2, 1e-2
 
         np.testing.assert_allclose(
@@ -93,12 +102,12 @@ def unittest_use_cinn():
 
 def apply_to_static(net, use_cinn, input_spec=None):
     build_strategy = paddle.static.BuildStrategy()
-    build_strategy.build_cinn_pass = use_cinn
     return paddle.jit.to_static(
         net,
         input_spec=input_spec,
         build_strategy=build_strategy,
         full_graph=True,
+        backend='CINN' if use_cinn else None
     )
 
 

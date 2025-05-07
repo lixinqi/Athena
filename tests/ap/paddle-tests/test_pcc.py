@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
 import sys
 from os.path import dirname
 
@@ -22,16 +23,8 @@ import utils
 
 import paddle
 from paddle.static import InputSpec
-
-
-def matmul_add_relu(x, y, b):
-    out = paddle.matmul(x, y)
-    return paddle.nn.functional.relu(out + b)
-
-
-def matmul_add_gelu_true(x, y, b):
-    out = paddle.matmul(x, y)
-    return paddle.nn.functional.gelu(out + b, True)
+import paddle.incubate.cc as pcc
+import paddle.incubate.cc.typing as pct
 
 
 class CINNSubGraphNet(paddle.nn.Layer):
@@ -44,17 +37,13 @@ class CINNSubGraphNet(paddle.nn.Layer):
         return out
 
 
-class TestAPMatmulBinary(unittest.TestCase):
-    """
-    Test Pir API + @to_static + CINN.
-    """
-
+class TestPCCMatmulBinary(unittest.TestCase):
     def setUp(self):
         paddle.seed(2022)
         self.prepare_data()
 
     def prepare_data(self):
-        self.dtype = "float16"
+        self.dtype = "bfloat16"
 
         self.x_shape = [4, 65536, 128]
         self.x = paddle.randn(self.x_shape, dtype=self.dtype)
@@ -68,32 +57,51 @@ class TestAPMatmulBinary(unittest.TestCase):
         self.b = paddle.randn(self.b_shape, dtype=self.dtype)
         self.b.stop_gradient = False
 
-    def eval_symbolic(self, net, use_cinn, profile):
+    def run_with_dy2st(self, profile):
+        def matmul_add_relu(x, y, b):
+            out = paddle.matmul(x, y)
+            return paddle.nn.functional.relu(out + b)
+
+        net = CINNSubGraphNet(matmul_add_relu)
         input_spec = [
             InputSpec(shape=self.x_shape, dtype=self.dtype),
             InputSpec(shape=self.y_shape, dtype=self.dtype),
             InputSpec(shape=self.b_shape, dtype=self.dtype),
         ]
-        net = utils.apply_to_static(net, use_cinn, input_spec)
+        net = utils.apply_to_static(net, False, input_spec)
         net.eval()
         out = utils.run_with_profile(profile, net, self.x, self.y, self.b)
         return out
 
+    def run_with_pcc(self, profile):
+        B = pct.DimVar(self.x_shape[0])
+        M = pct.DimVar(self.x_shape[1])
+        N = pct.DimVar(self.y_shape[1])
+        K = pct.DimVar(self.x_shape[2])
+        DType = pct.DTypeVar("T", self.dtype)
+
+        def matmul_add_relu(
+            x: pct.Tensor([B, M, K], DType),
+            y: pct.Tensor([K, N], DType),
+            b: pct.Tensor([N], DType),
+        ):
+            def epilogue(out):
+                return paddle.nn.functional.relu(out + b)
+
+            out = paddle.matmul(x, y)
+            return epilogue(out)
+
+        parent_dir = os.path.dirname(os.path.abspath(__file__))
+        fused_matmul = pcc.compile(matmul_add_relu, ap_path=parent_dir)
+        out = fused_matmul(self.x, self.y, self.b)
+        return out
+
     def test_matmul_add_relu(self):
         profile = False
-        net = CINNSubGraphNet(matmul_add_relu)
-        cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
-        dy2st_out = self.eval_symbolic(net, use_cinn=False, profile=profile)
+        ap_out = self.run_with_pcc(profile=profile)
+        dy2st_out = self.run_with_dy2st(profile=profile)
         if not profile:
-            utils.check_result(self.dtype, cinn_out, dy2st_out)
-
-    def notest_matmul_add_gelu(self):
-        profile = False
-        net = CINNSubGraphNet(matmul_add_gelu_true)
-        cinn_out = self.eval_symbolic(net, use_cinn=True, profile=profile)
-        dy2st_out = self.eval_symbolic(net, use_cinn=False, profile=profile)
-        if not profile:
-            utils.check_result(self.dtype, cinn_out, dy2st_out)
+            utils.check_result(self.dtype, ap_out, dy2st_out)
 
 
 if __name__ == "__main__":

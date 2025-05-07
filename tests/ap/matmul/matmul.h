@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cuda.h>
+#include <cuda_bf16.h>
 #include <cuda_fp16.h>
 #include <iostream>
 #include <map>
@@ -45,12 +46,18 @@
     }                                                                          \
   } while (0)
 
-#define AP_ALIGNMENT_half(d)                                                   \
-  ((d % 8) == 0) ? 8 : (((d % 4) == 0) ? 4 : (((d % 2) == 0) ? 2 : 1))
-
-#define AP_ALIGNMENT_float(d) ((d % 4) == 0) ? 4 : (((d % 2) == 0) ? 2 : 1)
-
 namespace ap {
+
+template <typename T, int Dim> struct Alignment {
+  static constexpr int kValue =
+      ((Dim % 8) == 0) ? 8
+                       : (((Dim % 4) == 0) ? 4 : (((Dim % 2) == 0) ? 2 : 1));
+};
+
+template <int Dim> struct Alignment<float, Dim> {
+  static constexpr int kValue =
+      ((Dim % 4) == 0) ? 4 : (((Dim % 2) == 0) ? 2 : 1);
+};
 
 template <typename T, int N> using Array = cutlass::Array<T, N>;
 
@@ -158,8 +165,8 @@ struct GemmEpilogueParams {
     shape_args.ldc_bias = (!bias || is_C_bias) ? 0 : n;
   }
 
-  void SetEpilogues(const std::vector<const void *> &in_ptrs, 
-                    const std::vector< void *> &out_ptrs) {
+  void SetEpilogues(const std::vector<const void *> &in_ptrs,
+                    const std::vector<void *> &out_ptrs) {
     epilogue_in_ptrs = in_ptrs;
     epilogue_out_ptrs = out_ptrs;
   }
@@ -202,6 +209,10 @@ struct GemmBroadcastEpilogueParams : GemmEpilogueParams {
 template <typename T> struct CutlassDataType { using Type = T; };
 
 template <> struct CutlassDataType<half> { using Type = cutlass::half_t; };
+
+template <> struct CutlassDataType<__nv_bfloat16> {
+  using Type = cutlass::bfloat16_t;
+};
 
 // Convert to cutlass layout
 template <bool Transposed> struct MatrixLayout {
