@@ -23,7 +23,7 @@ FILENAMES_ARRAY=(
     "test_matmul_binary"
     "test_matmul_epilogue"
     "unzip_tpl"
-    "test_moeunzip"
+    "moe_unzip_ptn"
 )
 for filename in "${FILENAMES_ARRAY[@]}"
 do

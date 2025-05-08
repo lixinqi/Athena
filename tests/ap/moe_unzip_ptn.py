@@ -227,7 +227,7 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
         output1_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out1),
         output2_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out2),
         output3_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out3),
-        tmp_space_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_tmp),
+        tmp_space_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out4),
         input0_shape_kargs=input0_shape_kargs,
         output_shape_kargs=output_shape_kargs,
     )
