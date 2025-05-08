@@ -9,13 +9,8 @@ namespace ap {
 struct MatmulAddBinaryRunner {
   template <int TuningConfigId>
   static void Apply(const GemmEpilogueParams &params) {
-#if AP_USE_FLOAT16
-    using ElementT = half;
+    using ElementT = KernelUtils::Type;
     using ElementComputeT = float;
-#else
-    using ElementT = float;
-    using ElementComputeT = float;
-#endif
 
     typename VariadicEpilogueFunctor<ElementComputeT>::Arguments variadic_args;
     if (params.epilogue_in_ptrs.size() > 0U) {
@@ -57,16 +52,13 @@ void MatmulAddBinaryKernel(
     const std::vector<std::vector<int64_t>> &epilogue_out_shapes) {
   GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
                             weight_shape, bias_shape);
-  params.SetEpilogueAndShapes(epilogue_ins, epilogue_in_shapes, epilogue_outs, epilogue_out_shapes);
+  params.SetEpilogueAndShapes(epilogue_ins, epilogue_in_shapes, epilogue_outs,
+                              epilogue_out_shapes);
 
   static int selected_config_id = -1;
-#if AP_USE_FLOAT16
-  selected_config_id = RunWithAutotune<half, MatmulAddBinaryRunner>(
-      *stream, selected_config_id, params);
-#else
-  selected_config_id = RunWithAutotune<float, MatmulAddBinaryRunner>(
-      *stream, selected_config_id, params);
-#endif
+  selected_config_id =
+      RunWithAutotune<KernelUtils::Type, MatmulAddBinaryRunner>(
+          *stream, selected_config_id, params);
 }
 
 } // namespace ap

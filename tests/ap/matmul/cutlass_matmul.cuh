@@ -170,8 +170,8 @@ void CutlassMatmul(const GemmEpilogueParams& params) {
 template <typename ElementT,
           typename ElementComputeT,
           template<typename T> class UnaryFunctor,
-          bool TransposeA = false,
-          bool TransposeB = false,
+          int AlignA = 128 / cutlass::sizeof_bits<ElementT>::value,
+          int AlignB = 128 / cutlass::sizeof_bits<ElementT>::value,
           int ConfigId = DefaultConfig::kConfigId,
           int SwizzleFactor = DefaultConfig::kSwizzleFactor,
           bool Batched = DefaultConfig::kBatched>
@@ -197,9 +197,9 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
 
   using GemmFunc = cutlass::gemm::device::GemmUniversal<
       ElementInputA,
-      typename MatrixLayout<TransposeA>::Type,
+      cutlass::layout::RowMajor,
       ElementInputB,
-      typename MatrixLayout<TransposeB>::Type,
+      cutlass::layout::RowMajor,
       ElementOutput,
       cutlass::layout::RowMajor,
       ElementAccumulator,
@@ -211,9 +211,9 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       EpilogueOutputOp,
       typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
       GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
-      128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
-      128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
-      typename GemmOperation<ElementT>::Type  // Operation performed by GEMM
+      AlignA,
+      AlignB,
+      typename GemmOperation<ElementT>::Type
   >;
 
   CHECK_CUTLASS(SetMaxDynamicSharedMemorySize<GemmFunc>());

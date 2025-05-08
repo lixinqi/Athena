@@ -1,7 +1,7 @@
+#include "autotune.h"
 #include "cutlass_matmul.cuh"
 #include "default_config_id.h"
 #include "epilogue_op.h"
-#include "profile.h"
 #include <vector>
 
 namespace ap {
@@ -10,27 +10,22 @@ template <typename T>
 // using UnaryEpilogueFunctor = ScaleFunctor<T>;
 using UnaryEpilogueFunctor = IdentityFunctor<T>;
 
-template <int TuningConfigId>
-static void RunMatmulAddUnaryKernel(const GemmEpilogueParams &params) {
-#if AP_USE_FLOAT16
-  using ElementT = half;
-  using ElementComputeT = float;
-#else
-  using ElementT = float;
-  using ElementComputeT = float;
-#endif
+struct MatmulAddUnaryRunner {
+  template <int TuningConfigId>
+  static void Apply(const GemmEpilogueParams &params) {
+    using ElementT = KernelUtils::Type;
+    using ElementComputeT = float;
 
-  // typename UnaryEpilogueFunctor<ElementComputeT>::Arguments unary_args{0.1};
-  typename UnaryEpilogueFunctor<ElementComputeT>::Arguments unary_args;
+    // typename UnaryEpilogueFunctor<ElementComputeT>::Arguments
+    // unary_args{0.1};
+    typename UnaryEpilogueFunctor<ElementComputeT>::Arguments unary_args;
 
-  if (params.transpose_b) {
+    constexpr int AlignA = 128 / cutlass::sizeof_bits<ElementT>::value;
+    constexpr int AlignB = 128 / cutlass::sizeof_bits<ElementT>::value;
     CutlassMatmulAddUnary<ElementT, ElementComputeT, UnaryEpilogueFunctor,
-                          false, true, TuningConfigId>(params, unary_args);
-  } else {
-    CutlassMatmulAddUnary<ElementT, ElementComputeT, UnaryEpilogueFunctor,
-                          false, false, TuningConfigId>(params, unary_args);
+                          AlignA, AlignB, TuningConfigId>(params, unary_args);
   }
-}
+};
 
 void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
                           const void *weight, const void *bias, void *output,
@@ -41,15 +36,9 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
   GemmEpilogueParams params(*stream, input, weight, bias, output, input_shape,
                             weight_shape, bias_shape, false, transpose_b);
 
-#if AP_ENABLE_AUTOTUNE
-#if AP_USE_FLOAT16
-  AP_AUTOTUNE_half(RunMatmulAddUnaryKernel, *stream, params);
-#else
-  AP_AUTOTUNE_float(RunMatmulAddUnaryKernel, *stream, params);
-#endif
-#else
-  RunMatmulAddUnaryKernel<DefaultConfig::kConfigId>(params);
-#endif
+  static int selected_config_id = -1;
+  selected_config_id = RunWithAutotune<KernelUtils::Type, MatmulAddUnaryRunner>(
+      *stream, selected_config_id, params);
 }
 
 } // namespace ap
