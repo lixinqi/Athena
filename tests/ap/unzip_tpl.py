@@ -55,7 +55,7 @@ class MoeUnzipVariadicTemplate:
         output1_karg,
         output2_karg,
         output3_karg,
-        tmp_space_karg,
+        output4_karg,
         input0_shape_kargs,
         output_shape_kargs,
     ):
@@ -68,7 +68,7 @@ class MoeUnzipVariadicTemplate:
             [output1_karg, "output1"],
             [output2_karg, "output2"],
             [output3_karg, "output3"],
-            [tmp_space_karg, "tmp_space"],
+            [output4_karg, "output4"],
             *map(
                 lambda i: [input0_shape_kargs[i], f"input0_dim{i}"],
                 range(len(input0_shape_kargs)),
@@ -100,7 +100,7 @@ class MoeUnzipVariadicTemplate:
             output1_karg,
             output2_karg,
             output3_karg,
-            tmp_space_karg,
+            output4_karg,
             input0_shape_kargs,
             output_shape_kargs,
         )
@@ -213,7 +213,7 @@ class MoeUnzipVariadicTemplate:
         output1_karg,
         output2_karg,
         output3_karg,
-        tmp_space_karg,
+        output4_karg,
         input0_shape_kargs,
         output_shape_kargs,
     ):
@@ -252,7 +252,7 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
 
   cudaStream_t* cuda_stream_ptr = reinterpret_cast<cudaStream_t*>(stream_ptr);
   std::cout << "start tokens_unzip_stable_kernel" << std::endl;
-  ap::tokens_unzip_stable<ElementT, ElementT, ap::MoeUnzipEpilogueFunctor>(*cuda_stream_ptr, ${input0}, ${input1}, ${input2}, ${input3}, 384, 8, 4, ${output0}, ${output1}, ${output2}, ${output3}, (int*)${tmp_space}, ${rows}, ${output_rows}, ${cols});
+  ap::tokens_unzip_stable<ElementT, ElementT, ap::MoeUnzipEpilogueFunctor>(*cuda_stream_ptr, ${input0}, ${input1}, ${input2}, ${input3}, 384, 8, 4, ${output0}, ${output1}, ${output2}, ${output3}, ${output4}, ${rows}, ${output_rows}, ${cols});
    
 }
 }
@@ -281,7 +281,7 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
             .replace("${output1}", self.get_kernel_arg_id_var_name(output1_karg))
             .replace("${output2}", self.get_kernel_arg_id_var_name(output2_karg))
             .replace("${output3}", self.get_kernel_arg_id_var_name(output3_karg))
-            .replace("${tmp_space}", self.get_kernel_arg_id_var_name(tmp_space_karg))
+            .replace("${output4}", self.get_kernel_arg_id_var_name(output4_karg))
             .replace("${rows}", f"{input0_shape_kargs[0].value}")
             .replace("${output_rows}", f"{output_shape_kargs[0].value}")
             .replace("${cols}", f"{input0_shape_kargs[1].value}")

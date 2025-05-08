@@ -17,22 +17,23 @@ import umprime
 @abstract_drr.register_drr_pass("moeunzip_fusion", nice=0)
 class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
   def source_pattern(self, o, t):
+    in_num = self.number_of_inputs()
+    out_num = self.number_of_outputs()
     o.unzip_op = o.ap_native_op("pd_op._moe_unzip")
-    # use unzip_out0 as tmp space
     o.unzip_op(
         [t.input0, t.input1, t.input2, t.input3, t.input4],
-        [t.unzip_tmp, t.unzip_out1, t.unzip_out2, t.unzip_out3, t.unzip_out4]
+        [t.unzip_out0, t.unzip_out1, t.unzip_out2, t.unzip_out3, t.unzip_out4]
     )
 
     o.trivial_op = o.ap_trivial_fusion_op()
     o.trivial_op(
-        [t.unzip_tmp],
+        [t.unzip_out0],
         [t.output]
     )
 
   def result_pattern(self, o, t):
     o.fustion_op = o.ap_pattern_fusion_op(self.code_gen)
-    o.fustion_op([t.input0, t.input1, t.input2, t.input3, t.input4], [t.output, t.unzip_out1, t.unzip_out2, t.unzip_out3, t.unzip_out4, t.unzip_tmp])
+    o.fustion_op([t.input0, t.input1, t.input2, t.input3, t.input4], [t.output, t.unzip_out0, t.unzip_out1, t.unzip_out2, t.unzip_out3, t.unzip_out4])
 
   def constraint(self, o, t):
     return True
@@ -161,7 +162,7 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     print("after-umprime:\n", mut_program)
     self._insert_load_from_global(
       mut_program,
-      input_names=["unzip_tmp"]
+      input_names=["unzip_out0"]
     )
     self._insert_store_to_global(
       mut_program,
@@ -171,7 +172,7 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     kernel_arg_translator = self._make_kernel_arg_translator()
     index_func_unique_id2index_program = self._make_index_func_unique_id2index_program(
       mut_program,
-      anchor_data_op_name="unzip_tmp",
+      anchor_data_op_name="unzip_out0",
       input_names=[],
       output_names=[],
     )
@@ -183,7 +184,7 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     )
     self._replace_with_load_from_register(
       mut_program,
-      load_ir_value_name="unzip_tmp",
+      load_ir_value_name="unzip_out0",
       register_var_name="x"
     )
     self._replace_with_store_to_register(
@@ -227,7 +228,248 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
         output1_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out1),
         output2_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out2),
         output3_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out3),
-        tmp_space_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out4),
+        output4_karg=ctx.out_tensor_data_ptr_kernel_arg_id(t.unzip_out4),
         input0_shape_kargs=input0_shape_kargs,
         output_shape_kargs=output_shape_kargs,
     )
+
+class NumberOfInputsTrait0():
+  def number_of_inputs(self):
+    return 0
+
+class NumberOfInputsTrait1():
+  def number_of_inputs(self):
+    return 1
+
+class NumberOfInputsTrait2():
+  def number_of_inputs(self):
+    return 2
+
+class NumberOfInputsTrait3():
+  def number_of_inputs(self):
+    return 3
+
+class NumberOfInputsTrait4():
+  def number_of_inputs(self):
+    return 4
+
+class NumberOfInputsTrait5():
+  def number_of_inputs(self):
+    return 5
+
+class NumberOfInputsTrait6():
+  def number_of_inputs(self):
+    return 6
+
+class NumberOfInputsTrait7():
+  def number_of_inputs(self):
+    return 7
+
+class NumberOfInputsTrait8():
+  def number_of_inputs(self):
+    return 8
+
+class NumberOfInputsTrait9():
+  def number_of_inputs(self):
+    return 9
+
+class NumberOfInputsTrait10():
+  def number_of_inputs(self):
+    return 10
+
+class NumberOfInputsTrait11():
+  def number_of_inputs(self):
+    return 11
+
+class NumberOfInputsTrait12():
+  def number_of_inputs(self):
+    return 12
+
+class NumberOfInputsTrait13():
+  def number_of_inputs(self):
+    return 13
+
+class NumberOfInputsTrait14():
+  def number_of_inputs(self):
+    return 14
+
+class NumberOfInputsTrait15():
+  def number_of_inputs(self):
+    return 15
+
+class NumberOfInputsTrait16():
+  def number_of_inputs(self):
+    return 16
+
+class NumberOfInputsTrait17():
+  def number_of_inputs(self):
+    return 17
+
+
+class NumberOfOutputsTrait0():
+  def number_of_outputs(self):
+    return 0
+
+class NumberOfOutputsTrait1():
+  def number_of_outputs(self):
+    return 1
+
+class NumberOfOutputsTrait2():
+  def number_of_outputs(self):
+    return 2
+
+class NumberOfOutputsTrait3():
+  def number_of_outputs(self):
+    return 3
+
+class NumberOfOutputsTrait4():
+  def number_of_outputs(self):
+    return 4
+
+class NumberOfOutputsTrait5():
+  def number_of_outputs(self):
+    return 5
+
+class NumberOfOutputsTrait6():
+  def number_of_outputs(self):
+    return 6
+
+class NumberOfOutputsTrait7():
+  def number_of_outputs(self):
+    return 7
+
+class NumberOfOutputsTrait8():
+  def number_of_outputs(self):
+    return 8
+
+class NumberOfOutputsTrait9():
+  def number_of_outputs(self):
+    return 9
+
+class NumberOfOutputsTrait10():
+  def number_of_outputs(self):
+    return 10
+
+class NumberOfOutputsTrait11():
+  def number_of_outputs(self):
+    return 11
+
+class NumberOfOutputsTrait12():
+  def number_of_outputs(self):
+    return 12
+
+class NumberOfOutputsTrait13():
+  def number_of_outputs(self):
+    return 13
+
+class NumberOfOutputsTrait14():
+  def number_of_outputs(self):
+    return 14
+
+class NumberOfOutputsTrait15():
+  def number_of_outputs(self):
+    return 15
+
+class NumberOfOutputsTrait16():
+  def number_of_outputs(self):
+    return 16
+
+class NumberOfOutputsTrait17():
+  def number_of_outputs(self):
+    return 17
+
+class NumberOfOutputsTrait18():
+  def number_of_outputs(self):
+    return 18
+
+class NumberOfOutputsTrait19():
+  def number_of_outputs(self):
+    return 19
+
+class NumberOfOutputsTrait20():
+  def number_of_outputs(self):
+    return 20
+
+class NumberOfOutputsTrait21():
+  def number_of_outputs(self):
+    return 21
+
+class NumberOfOutputsTrait22():
+  def number_of_outputs(self):
+    return 22
+def get_mixin_class(base_class, number_of_inputs, number_of_outputs):
+  num_inputs_to_input_trait_class = [
+    None,
+    NumberOfInputsTrait1,
+    NumberOfInputsTrait2,
+    NumberOfInputsTrait3,
+    NumberOfInputsTrait3,
+    NumberOfInputsTrait4,
+    NumberOfInputsTrait5,
+    NumberOfInputsTrait6,
+    NumberOfInputsTrait7,
+    NumberOfInputsTrait8,
+    NumberOfInputsTrait9,
+    NumberOfInputsTrait10,
+    NumberOfInputsTrait11,
+    NumberOfInputsTrait12,
+    NumberOfInputsTrait13,
+    NumberOfInputsTrait14,
+    NumberOfInputsTrait15,
+    NumberOfInputsTrait16,
+    NumberOfInputsTrait17,
+  ]
+  num_outputs_to_output_trait_class = [
+    None,
+    NumberOfOutputsTrait1,
+    NumberOfOutputsTrait2,
+    NumberOfOutputsTrait3,
+    NumberOfOutputsTrait4,
+    NumberOfOutputsTrait5,
+    NumberOfOutputsTrait6,
+    NumberOfOutputsTrait7,
+    NumberOfOutputsTrait8,
+    NumberOfOutputsTrait9,
+    NumberOfOutputsTrait10,
+    NumberOfOutputsTrait11,
+    NumberOfOutputsTrait12,
+    NumberOfOutputsTrait13,
+    NumberOfOutputsTrait14,
+    NumberOfOutputsTrait15,
+    NumberOfOutputsTrait16,
+    NumberOfOutputsTrait17,
+    NumberOfOutputsTrait18,
+    NumberOfOutputsTrait19,
+    NumberOfOutputsTrait20,
+    NumberOfOutputsTrait21,
+    NumberOfOutputsTrait22,
+  ]
+  return type(
+    f"MoeUnzipEpilogueFusion{number_of_inputs}_{number_of_outputs}",
+    [
+      base_class,
+      num_inputs_to_input_trait_class[number_of_inputs],
+      num_outputs_to_output_trait_class[number_of_outputs],
+    ],
+    BuiltinSerializableAttrMap()
+  )
+
+def register_class(base_class, max_num_inputs, max_num_outputs):
+  def register_drr_class(num_inputs, num_outputs):
+    abstract_drr.register_drr_pass(f"moeunzip_binary_in{num_inputs}_out{num_outputs}_fusion", nice=0)(
+      get_mixin_class(base_class, num_inputs, num_outputs)
+    )
+
+  def register_num_inputs_drr_classes(num_inputs):
+
+    def register_num_outputs_drr_classes(num_outputs):
+      return register_drr_class(num_inputs+2, num_outputs+1)
+
+    map(register_num_outputs_drr_classes, range(max_num_outputs))
+    print('done max outputs')
+    return None
+
+  map(register_num_inputs_drr_classes, range(max_num_inputs))
+  return None
+
+register_class(base_class=MoeUnzipBinaryFusion, max_num_inputs=10, max_num_outputs=10)
