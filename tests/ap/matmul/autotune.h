@@ -14,9 +14,9 @@ auto GenerateFuncList(std::integer_sequence<int, Is...>) {
 
 template <typename T, typename Runner, typename... Args>
 int RunWithAutotune(cudaStream_t stream, int config_id, Args &&...args) {
+#if AP_ENABLE_AUTOTUNE
   int selected_config_id = config_id;
 
-#if AP_ENABLE_AUTOTUNE
   using FuncPtr = decltype(&Runner::template Apply<0>);
   constexpr int N = ap::ConfigsInfo<T>::kNumTotals;
   static std::vector<FuncPtr> matmul_functions =
@@ -27,11 +27,11 @@ int RunWithAutotune(cudaStream_t stream, int config_id, Args &&...args) {
   } else {
     matmul_functions[selected_config_id](std::forward<Args>(args)...);
   }
-#else
-  func<DefaultConfig::kConfigId>(std::forward<Args>(args)...);
-#endif
-
   return selected_config_id;
+#else
+  Runner::template Apply<DefaultConfig::kConfigId>(std::forward<Args>(args)...);
+  return -1;
+#endif
 }
 
 } // namespace ap
