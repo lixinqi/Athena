@@ -47,31 +47,31 @@ class MoeUnzipVariadicTemplate:
 
     def compile(
         self,
-        input0_karg,
-        input1_karg,
-        input2_karg,
-        input3_karg,
-        output0_karg,
-        output1_karg,
-        output2_karg,
-        output3_karg,
-        output4_karg,
-        input0_shape_kargs,
+        input_x_karg,
+        xscale_karg,
+        expert_routemap_topk_karg,
+        expert_prob_topk_karg,
+        output_karg,
+        zipped_expertwise_rowmap_karg,
+        token_prob_unzipped_karg,
+        xscale_unzipped_karg,
+        global_expertwise_block_cumsum_karg,
+        input_x_shape_kargs,
         output_shape_kargs,
     ):
         kargs_name_pair_list = [
-            [input0_karg, "input0"],
-            [input1_karg, "input1"],
-            [input2_karg, "input2"],
-            [input3_karg, "input3"],
-            [output0_karg, "output"],
-            [output1_karg, "output1"],
-            [output2_karg, "output2"],
-            [output3_karg, "output3"],
-            [output4_karg, "output4"],
+            [input_x_karg, "input_x"],
+            [xscale_karg, "xscale"],
+            [expert_routemap_topk_karg, "expert_routemap_topk"],
+            [expert_prob_topk_karg, "expert_prob_topk"],
+            [output_karg, "output"],
+            [zipped_expertwise_rowmap_karg, "zipped_expertwise_rowmap"],
+            [token_prob_unzipped_karg, "token_prob_unzipped"],
+            [xscale_unzipped_karg, "xscale_unzipped"],
+            [global_expertwise_block_cumsum_karg, "global_expertwise_block_cumsum"],
             *map(
-                lambda i: [input0_shape_kargs[i], f"input0_dim{i}"],
-                range(len(input0_shape_kargs)),
+                lambda i: [input_x_shape_kargs[i], f"input_x_dim{i}"],
+                range(len(input_x_shape_kargs)),
             ),
             *map(
                 lambda i: [output_shape_kargs[i], f"output_dim{i}"],
@@ -92,16 +92,16 @@ class MoeUnzipVariadicTemplate:
         print("-- moe_unzip_epilogue_code:\n", trivial_code_str)
         project_module = self.make_project(
             trivial_code_str,
-            input0_karg,
-            input1_karg,
-            input2_karg,
-            input3_karg,
-            output0_karg,
-            output1_karg,
-            output2_karg,
-            output3_karg,
-            output4_karg,
-            input0_shape_kargs,
+            input_x_karg,
+            xscale_karg,
+            expert_routemap_topk_karg,
+            expert_prob_topk_karg,
+            output_karg,
+            zipped_expertwise_rowmap_karg,
+            token_prob_unzipped_karg,
+            xscale_unzipped_karg,
+            global_expertwise_block_cumsum_karg,
+            input_x_shape_kargs,
             output_shape_kargs,
         )
         return CodeGenResult(
@@ -205,16 +205,16 @@ class MoeUnzipVariadicTemplate:
     def make_project(
         self,
         trivial_code_str,
-        input0_karg,
-        input1_karg,
-        input2_karg,
-        input3_karg,
-        output0_karg,
-        output1_karg,
-        output2_karg,
-        output3_karg,
-        output4_karg,
-        input0_shape_kargs,
+        input_x_karg,
+        xscale_karg,
+        expert_routemap_topk_karg,
+        expert_prob_topk_karg,
+        output_karg,
+        zipped_expertwise_rowmap_karg,
+        token_prob_unzipped_karg,
+        xscale_unzipped_karg,
+        global_expertwise_block_cumsum_karg,
+        input_x_shape_kargs,
         output_shape_kargs,
     ):
         code_template = """
@@ -252,13 +252,13 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
 
   cudaStream_t* cuda_stream_ptr = reinterpret_cast<cudaStream_t*>(stream_ptr);
   std::cout << "start tokens_unzip_stable_kernel" << std::endl;
-  ap::tokens_unzip_stable<ElementT, ElementT, ap::MoeUnzipEpilogueFunctor>(*cuda_stream_ptr, ${input0}, ${input1}, ${input2}, ${input3}, 384, 8, 4, ${output0}, ${output1}, ${output2}, ${output3}, ${output4}, ${rows}, ${output_rows}, ${cols});
+  ap::tokens_unzip_stable<ElementT, ElementT, ap::MoeUnzipEpilogueFunctor>(*cuda_stream_ptr, ${input_x}, ${xscale}, ${expert_routemap_topk}, ${expert_prob_topk}, 384, 8, 4, ${output}, ${zipped_expertwise_rowmap}, ${token_prob_unzipped}, ${xscale_unzipped}, ${global_expertwise_block_cumsum}, ${rows}, ${output_rows}, ${cols});
    
 }
 }
   """
 
-        output_dtype = self.dtype2type_name[output0_karg.type.data_type]
+        output_dtype = self.dtype2type_name[output_karg.type.data_type]
         code = (
             code_template
             .replace(
@@ -273,18 +273,18 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
                 "${AP_EPILOGUE_COMPUTATION_STATEMENTS}", trivial_code_str
             )
             .replace("${kernel_name}", self.kernel_name)
-            .replace("${input0}", self.get_kernel_arg_id_var_name(input0_karg))
-            .replace("${input1}", self.get_kernel_arg_id_var_name(input1_karg))
-            .replace("${input2}", self.get_kernel_arg_id_var_name(input2_karg))
-            .replace("${input3}", self.get_kernel_arg_id_var_name(input3_karg))
-            .replace("${output0}", self.get_kernel_arg_id_var_name(output0_karg))
-            .replace("${output1}", self.get_kernel_arg_id_var_name(output1_karg))
-            .replace("${output2}", self.get_kernel_arg_id_var_name(output2_karg))
-            .replace("${output3}", self.get_kernel_arg_id_var_name(output3_karg))
-            .replace("${output4}", self.get_kernel_arg_id_var_name(output4_karg))
-            .replace("${rows}", f"{input0_shape_kargs[0].value}")
+            .replace("${input_x}", self.get_kernel_arg_id_var_name(input_x_karg))
+            .replace("${xscale}", self.get_kernel_arg_id_var_name(xscale_karg))
+            .replace("${expert_routemap_topk}", self.get_kernel_arg_id_var_name(expert_routemap_topk_karg))
+            .replace("${expert_prob_topk}", self.get_kernel_arg_id_var_name(expert_prob_topk_karg))
+            .replace("${output}", self.get_kernel_arg_id_var_name(output_karg))
+            .replace("${zipped_expertwise_rowmap}", self.get_kernel_arg_id_var_name(zipped_expertwise_rowmap_karg))
+            .replace("${token_prob_unzipped}", self.get_kernel_arg_id_var_name(token_prob_unzipped_karg))
+            .replace("${xscale_unzipped}", self.get_kernel_arg_id_var_name(xscale_unzipped_karg))
+            .replace("${global_expertwise_block_cumsum}", self.get_kernel_arg_id_var_name(global_expertwise_block_cumsum_karg))
+            .replace("${rows}", f"{input_x_shape_kargs[0].value}")
             .replace("${output_rows}", f"{output_shape_kargs[0].value}")
-            .replace("${cols}", f"{input0_shape_kargs[1].value}")
+            .replace("${cols}", f"{input_x_shape_kargs[1].value}")
             .replace("${output_dtype}", output_dtype)
         )
 
