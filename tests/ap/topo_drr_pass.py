@@ -136,6 +136,66 @@ class FakeDataStoreToGlobalForYieldAccessTopoPass(access_topo_drr.DrrPass):
       []
     )
 
+class InsertStoreToGlobalForMMoutAccessTopoPass(access_topo_drr.DrrPass):
+
+  def __init__(self):
+    self.undefined_place = pir.a_place(pir.UndefinedPlace())
+    self.data_input_name_attr = pir.a_str('mm_out')
+
+  def source_pattern(self, o, t):
+    o.load_from_global = o.ap_native_op("ap_op.load_from_global")
+    o.load_from_global(
+      [t.mm_out],
+      [t.mm_local_out]
+    )
+
+  def constraint(self, o, t):
+    return o.load_from_global.index_func_unique_id == self.data_input_name_attr
+
+  def result_pattern(self, o, t):
+    t.declare_internal_native_ir_value("input")
+    self.result_pattern_data_op(o, t)
+    store_to_global_op_name = "store_to_global_mm_op"
+    setattr(o, store_to_global_op_name, o.ap_native_op("ap_op.store_to_global"))
+    store_to_global_op = getattr(o, store_to_global_op_name)
+    store_to_global_op.index_func_unique_id = lambda o, t: self.data_input_name_attr
+    store_to_global_op(
+      [t.mm_out, t.mm_local_out],
+      []
+    )
+
+  def result_pattern_data_op(self, o, t):
+    t.declare_internal_native_ir_value(f"mm_out")
+    data_op_unique_name = f"data_op_for_mm_output"
+    setattr(o, data_op_unique_name, o.ap_native_op("pd_op.data"))
+    data_op = getattr(o, data_op_unique_name)
+    data_op.name = lambda o, t: self.get_name(o, t)
+    data_op.shape = lambda o, t: self.get_shape(o, t)
+    data_op.dtype = lambda o, t: self.get_dtype(o, t)
+    data_op.place = lambda o, t: self.get_place(o, t)
+    data_op(
+      [],
+      [t.mm_out]
+    )
+
+  def get_name(self, o, t):
+    return pir.a_str("mm_glb_out")
+
+  def get_shape(self, o, t):
+    ir_tensor = getattr(t, "mm_out")
+    def GetDims(dtype, dims, data_layout):
+      return dims
+    return pir.a_intarray(ir_tensor.type.match(t_dtensor=GetDims))
+
+  def get_dtype(self, o, t):
+    ir_tensor = getattr(t, "mm_out")
+    def GetDtype(dtype, dims, data_layout):
+      return dtype
+    return pir.a_dtype(ir_tensor.type.match(t_dtensor=GetDtype))
+
+  def get_place(self, o, t):
+      return self.undefined_place
+
 class ConvertUpSpiderStoreDataOpToYieldOpPass(access_topo_drr.DrrPass):
 
   def source_pattern(self, o, t):

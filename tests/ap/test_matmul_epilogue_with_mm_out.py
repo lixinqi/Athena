@@ -4,7 +4,7 @@ import topo_drr_pass
 import umprime
 import matmul_epilogue_pass
 import op_convertion_drr_pass
-import matmul_variadic_tpl
+import matmul_binary_tpl
 import ir_tools
 import index_program_translator_util
 import op_compute_translator_util
@@ -107,8 +107,14 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
     init_pass_manager.add_pass(ir_tools.create_access_topo_drr_one_step_pass(ir_pass))
     init_pass_manager.run(program)
 
+  def _insert_store_to_global_mm(self, program):
+    init_pass_manager = ir_tools.create_pass_manager()
+    ir_pass = topo_drr_pass.InsertStoreToGlobalForMMoutAccessTopoPass()
+    init_pass_manager.add_pass(ir_tools.create_access_topo_drr_one_step_pass(ir_pass))
+    init_pass_manager.run(program)
+
   def _make_kernel_arg_translator(self):
-    return matmul_variadic_tpl.make_kernel_arg_translator()
+    return matmul_binary_tpl.make_kernel_arg_translator()
 
   def _apply_topo_access_passes(self, mut_program, anchor_data_op_name):
     init_pass_manager = ir_tools.create_pass_manager()
@@ -210,7 +216,7 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
     return mut_program
 
   def _get_program_translator(self, ctx, o, t):
-    other_outputs_name_list = map(lambda i: f"output{i+1}", range(self.number_of_outputs()-1))
+    other_outputs_name_list = [*map(lambda i: f"output{i+1}", range(self.number_of_outputs()-1)), "mm_out"]
     inputs_name_list = map(lambda i: f"input{i+2}", range(self.number_of_inputs() - 2)) if self.number_of_inputs() > 2 else []
     mut_program = ir_tools.copy_fused_ops_to_program(
       o.trivial_op, tensor_match_ctx=t
@@ -232,6 +238,9 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
       mut_program,
       output_names=map(lambda i: f"output{i}", range(self.number_of_outputs()))
     )
+    self._insert_store_to_global_mm(
+      mut_program,
+    )
     kernel_arg_translator = self._make_kernel_arg_translator()
     index_func_unique_id2index_program = self._make_index_func_unique_id2index_program(
       mut_program,
@@ -243,7 +252,7 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
     index_program_translator_map = index_program_translator_util.IndexProgramTranslatorMap(
       index_func_unique_id2index_program=index_func_unique_id2index_program,
       kernel_arg_translator=kernel_arg_translator,
-      anchor_iter_var_names=matmul_variadic_tpl.get_anchor_iter_var_names()
+      anchor_iter_var_names=matmul_binary_tpl.get_anchor_iter_var_names()
     )
     self._replace_with_load_from_register(
       mut_program,
@@ -273,7 +282,7 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
     )
     print('after registry')
 
-    template_module = matmul_variadic_tpl.MatmulVariadicTemplate(
+    template_module = matmul_binary_tpl.MatmulBinaryTemplate(
       program_translator=program_translator,
       mut_kernel_arg_id_registry=mut_kernel_arg_id_registry,
     )
