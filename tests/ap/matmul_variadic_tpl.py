@@ -6,8 +6,23 @@ def make_kernel_arg_translator():
     return kernel_arg_translator_util.KernelArgTranslator(param_struct_name="args")
 
 
-def get_anchor_iter_var_names():
-    return ["coord.batch", "coord.row", "coord.column"]
+def get_anchor_iter_var_names(symbolic_shape):
+    return (
+        ["coord.batch", "coord.row", "coord.column"]
+        if len(symbolic_shape) >= 3
+        else ["coord.row", "coord.column"]
+    )
+
+
+def get_anchor_iter_dim_splits(symbolic_shape):
+    num_anchor_iters = len(get_anchor_iter_var_names(symbolic_shape))
+    diff = len(symbolic_shape) - num_anchor_iters
+
+    def get_dim_split(i):
+        # 0 is batch which may have no dimension or multiple dimensions in symbolic_shape
+        return diff + 1 if i < num_anchor_iters - 2 else 1
+
+    return map(lambda i: get_dim_split(i), range(num_anchor_iters))
 
 
 class MatmulVariadicTemplate:

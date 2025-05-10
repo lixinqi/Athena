@@ -43,7 +43,6 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
   def constraint(self, o, t):
     program = ir_tools.copy_fused_ops_to_program(o.trivial_op, tensor_match_ctx=t)
     print("before-umprime: ", program)
-    # umprime passes
     pass_manager = ir_tools.create_pass_manager()
     pass_manager.add_pass(ir_tools.create_access_topo_drr_pass("umprime"))
     pass_manager.add_pass(ir_tools.create_dce_pass())
@@ -56,7 +55,6 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
     )
     outputs_name_list = map(lambda i: f"output{i}", range(self.number_of_outputs()))
     inputs_name_list = map(lambda i: f"input{i+2}", range(self.number_of_inputs() - 2)) if self.number_of_inputs() > 2 else []
-    print('inputs_name_list: ', ', '.join(inputs_name_list))
     init_fake_data_for_yield_input = topo_drr_pass.FakeDataForYieldAccessTopoPass(
       outputs_name_list
     )
@@ -243,10 +241,12 @@ class MatmulEpilogueFusion(abstract_drr.DrrPass):
       output_names=other_outputs_name_list,
     )
     print("index_func_unique_id2index_program:\n", index_func_unique_id2index_program)
+    mm_out_symbolic_shape = t.mm_out.symbolic_shape_to_list()
     index_program_translator_map = index_program_translator_util.IndexProgramTranslatorMap(
       index_func_unique_id2index_program=index_func_unique_id2index_program,
       kernel_arg_translator=kernel_arg_translator,
-      anchor_iter_var_names=matmul_variadic_tpl.get_anchor_iter_var_names()
+      anchor_iter_var_names=matmul_variadic_tpl.get_anchor_iter_var_names(mm_out_symbolic_shape),
+      anchor_iter_dim_splits=matmul_variadic_tpl.get_anchor_iter_dim_splits(mm_out_symbolic_shape),
     )
     self._replace_with_load_from_register(
       mut_program,

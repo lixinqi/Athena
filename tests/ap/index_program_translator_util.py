@@ -8,10 +8,12 @@ class IndexProgramTranslatorMap:
     self,
     index_func_unique_id2index_program,
     kernel_arg_translator,
-    anchor_iter_var_names
+    anchor_iter_var_names,
+    anchor_iter_dim_splits
   ):
     self.kernel_arg_translator = kernel_arg_translator
     self.anchor_iter_var_names = anchor_iter_var_names
+    self.anchor_iter_dim_splits = anchor_iter_dim_splits
     items = index_func_unique_id2index_program.items()
     self.index_func_unique_id2translator = OrderedDict(
       map(
@@ -44,7 +46,8 @@ class IndexProgramTranslatorMap:
       program_id=program_id,
       kernel_arg_translator=self.kernel_arg_translator,
       index_op_translator_maker=op_index_translator_util.OpIndexTranslatorFactory(),
-      anchor_iter_var_names=self.anchor_iter_var_names
+      anchor_iter_var_names=self.anchor_iter_var_names,
+      anchor_iter_dim_splits=self.anchor_iter_dim_splits,
     )
 
 
@@ -56,13 +59,15 @@ class IndexProgramTranslator:
     program_id,
     kernel_arg_translator,
     index_op_translator_maker,
-    anchor_iter_var_names
+    anchor_iter_var_names,
+    anchor_iter_dim_splits
   ):
     self.program_id = program_id
     self.program_property = index_program.copy_to_const_program_data()
     self.kernel_arg_translator = kernel_arg_translator
     self.index_op_translator_maker = index_op_translator_maker
     self.anchor_iter_var_names = anchor_iter_var_names
+    self.anchor_iter_dim_splits = anchor_iter_dim_splits
     self.ir_value_index2translated_value = MutableList()
     def PushNone(x):
       self.ir_value_index2translated_value.append(None)
@@ -85,7 +90,8 @@ class IndexProgramTranslator:
       input_properties=map(self._get_value_property, op_property.input_value_indexes),
       output_properties=map(self._get_value_property, op_property.output_value_indexes),
       kernel_arg_translator=self.kernel_arg_translator,
-      anchor_iter_var_names=self.anchor_iter_var_names
+      anchor_iter_var_names=self.anchor_iter_var_names,
+      anchor_iter_dim_splits=self.anchor_iter_dim_splits
     )
     inputs = map(self._get_translated_value, op_property.input_value_indexes)
     outputs = index_op_translator(
