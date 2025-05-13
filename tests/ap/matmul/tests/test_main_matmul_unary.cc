@@ -4,8 +4,9 @@
 #include "test_util.h"
 
 template <typename T>
-void TestMatmulAddUnary(cudaStream_t stream, int batch_count, int m, int n,
-                        int k, bool add_bias) {
+void TestMain(cudaStream_t stream, int batch_count, int m, int n, int k,
+              bool add_bias) {
+  bool random = true;
   bool transpose_b = false;
 
   std::vector<int64_t> input_shape{batch_count, m, k};
@@ -13,8 +14,8 @@ void TestMatmulAddUnary(cudaStream_t stream, int batch_count, int m, int n,
   std::vector<int64_t> bias_shape;
   std::vector<int64_t> output_shape{batch_count, m, n};
 
-  T *input = AllocateAndInit<T>(stream, input_shape, false, 1.);
-  T *weight = AllocateAndInit<T>(stream, weight_shape, false, 1.);
+  T *input = AllocateAndInit<T>(stream, input_shape, random, 1.);
+  T *weight = AllocateAndInit<T>(stream, weight_shape, random, 1.);
 
   T *bias = nullptr;
   if (add_bias) {
@@ -24,7 +25,7 @@ void TestMatmulAddUnary(cudaStream_t stream, int batch_count, int m, int n,
     for (size_t i = 0; i < bias_ref.size(); ++i) {
       bias_ref[i] = static_cast<float>(1000 * (i % 11));
     }
-    bias = AllocateAndInit<T>(stream, bias_shape, false, 0., bias_ref);
+    bias = AllocateAndInit<T>(stream, bias_shape, random, 0., bias_ref);
   }
 
   T *output = AllocateAndInit<T>(stream, output_shape, false, 0.);
@@ -48,19 +49,18 @@ void TestMatmulAddUnary(cudaStream_t stream, int batch_count, int m, int n,
 }
 
 int main(int argc, const char *argv[]) {
+  std::cout << "TestName: test_main_matmul_unary" << std::endl;
   ProblemSizeArgs args = ParseArgs(argc, argv);
 
   cudaStream_t stream;
   CHECK_CUDA(cudaStreamCreate(&stream));
 
-  bool add_bias = true;
+  bool add_bias = false;
 
 #if AP_USE_FLOAT16
-  TestMatmulAddUnary<half>(stream, args.batch_count, args.m, args.n, args.k,
-                           add_bias);
+  TestMain<half>(stream, args.batch_count, args.m, args.n, args.k, add_bias);
 #else
-  TestMatmulAddUnary<float>(stream, args.batch_count, args.m, args.n, args.k,
-                            add_bias);
+  TestMain<float>(stream, args.batch_count, args.m, args.n, args.k, add_bias);
 #endif
 
   CHECK_CUDA(cudaStreamDestroy(stream));

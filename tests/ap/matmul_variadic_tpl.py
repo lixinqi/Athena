@@ -212,10 +212,8 @@ struct VariadicEpilogueFunctor {
 
   // Note: need to support vectorized operation
   __forceinline__ __host__ __device__
-  T operator()(T x, const Arguments& args, const MatrixCoord& coord) const {
-    T out;
-    ${AP_EPILOGUE_COMPUTATION_STATEMENTS}
-    return out;
+  T operator()(T x, const Arguments& args) const {
+    return x;
   }
 };
 
@@ -231,8 +229,9 @@ struct MatmulWithVariadicRunner {
 
     constexpr int AlignA = Alignment<ElementT, ${k_value}>::kValue;
     constexpr int AlignB = Alignment<ElementT, ${n_value}>::kValue;
+    //std::cout << "AlignA: " << AlignA << ", AlignB: " << AlignB << std::endl;
 
-    CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
+    CutlassMatmulAddUnary<ElementT, ElementComputeT, VariadicEpilogueFunctor,
                              AlignA, AlignB, TuningConfigId>(params, epilogue_args);
   }
 };
@@ -289,7 +288,7 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
             )
             .replace(
                 "${AP_EPILOGUE_ARGUMENTS_INIT}",
-                self.get_epilogue_arguments_init_str("epilogue_args", indent="  "),
+                self.get_epilogue_arguments_init_str("epilogue_args", indent="    "),
             )
             .replace("${kernel_name}", self.kernel_name)
             .replace("${input0}", self.get_kernel_arg_id_var_name(input0_karg))
@@ -312,7 +311,7 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
             compile_cmd
             + " -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1 -DCUTLASS_DEBUG_TRACE_LEVEL=0"
         )
-        compile_cmd = compile_cmd + " -DAP_ENABLE_AUTOTUNE=1 -DAP_ENABLE_DEBUG=0"
+        compile_cmd = compile_cmd + " -DAP_ENABLE_AUTOTUNE=0 -DAP_ENABLE_DEBUG=1"
         compile_cmd = (
             compile_cmd
             + f" --shared {self.library_name}.cu -o lib{self.library_name}.so"

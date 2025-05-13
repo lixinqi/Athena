@@ -74,10 +74,11 @@ template <typename T> struct VariadicEpilogueFunctor {
 
   __forceinline__ __host__ __device__ T
   operator()(T x, const Arguments &args, const MatrixCoord &coord) const {
-    int64_t offset = CalcOffset(args, coord);
-    T y = static_cast<T>(args.in0_ptr[offset]);
-    T out = x + y;
-    return out;
+    //int64_t offset = CalcOffset(args, coord);
+    //T y = static_cast<T>(args.in0_ptr[offset]);
+    //T out = x + y;
+    //return out;
+    return x;
   }
 
   template <int N>
