@@ -11,7 +11,7 @@ template <typename T>
 using UnaryEpilogueFunctor = IdentityFunctor<T>;
 
 struct MatmulAddUnaryRunner {
-  template <int TuningConfigId>
+  template <int TuningConfigId, SwizzleType ST>
   static void Apply(const GemmEpilogueParams &params) {
     using ElementT = KernelUtils::Type;
     using ElementComputeT = float;
@@ -23,7 +23,8 @@ struct MatmulAddUnaryRunner {
     constexpr int AlignA = 128 / cutlass::sizeof_bits<ElementT>::value;
     constexpr int AlignB = 128 / cutlass::sizeof_bits<ElementT>::value;
     CutlassMatmulAddUnary<ElementT, ElementComputeT, UnaryEpilogueFunctor,
-                          AlignA, AlignB, TuningConfigId>(params, unary_args);
+                          AlignA, AlignB, TuningConfigId, ST>(params,
+                                                              unary_args);
   }
 };
 
@@ -37,8 +38,9 @@ void MatmulAddUnaryKernel(cudaStream_t *stream, const void *input,
                             weight_shape, bias_shape, false, transpose_b);
 
   static int selected_config_id = -1;
-  selected_config_id = RunWithAutotune<KernelUtils::Type, MatmulAddUnaryRunner>(
-      *stream, selected_config_id, params);
+  selected_config_id =
+      RunWithAutotune<KernelUtils::Type, MatmulAddUnaryRunner, true>(
+          *stream, selected_config_id, params);
 }
 
 } // namespace ap

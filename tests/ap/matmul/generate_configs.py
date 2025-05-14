@@ -15,72 +15,53 @@ template <>
 struct ConfigsInfo<float> {
   static constexpr int kNumTotals = ${num_configs_fp32};
 };
-
-template <int SwizzleFactor, bool Batched> struct SwizzleWrapper {
-  using Type =
-      cutlass::gemm::threadblock::GemmIdentityThreadblockSwizzle<SwizzleFactor>;
-};
-
-// template <int SwizzleFactor>
-// struct SwizzleWrapper<SwizzleFactor, true> {
-//   using Type =
-//       cutlass::gemm::threadblock::GemmBatchedIdentityThreadblockSwizzle;
-// };
 """
 
 fp16_config_template_0 = """
-template <typename ElementT, int SwizzleFactor, bool Batched, int Id = 0>
+template <typename ElementT, int Id = 0>
 struct GemmTuningConfigs {
   using TShape = cutlass::gemm::GemmShape<${tshape}>;
   using WShape = cutlass::gemm::GemmShape<${wshape}>;
   using IShape = cutlass::gemm::GemmShape<${ishape}>;
   static constexpr int kNumStages = ${stages};
 
-  using SwizzleThreadBlock =
-      typename SwizzleWrapper<SwizzleFactor, Batched>::Type;
   static constexpr int kId = Id;
 };
 """
 
 fp16_config_template = """
-template <typename ElementT, int SwizzleFactor, bool Batched>
-struct GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ${config_id}> {
+template <typename ElementT>
+struct GemmTuningConfigs<ElementT, ${config_id}> {
   using TShape = cutlass::gemm::GemmShape<${tshape}>;
   using WShape = cutlass::gemm::GemmShape<${wshape}>;
   using IShape = cutlass::gemm::GemmShape<${ishape}>;
   static constexpr int kNumStages = ${stages};
 
-  using SwizzleThreadBlock =
-      typename SwizzleWrapper<SwizzleFactor, Batched>::Type;
   static constexpr int kId = ${config_id};
 };
 """
 
 fp32_config_template_0 = """
 // Specialization for float
-template <int SwizzleFactor, bool Batched, int Id>
-struct GemmTuningConfigs<float, SwizzleFactor, Batched, Id> {
+template <int Id>
+struct GemmTuningConfigs<float, Id> {
   using TShape = cutlass::gemm::GemmShape<${tshape}>;
   using WShape = cutlass::gemm::GemmShape<${wshape}>;
   using IShape = cutlass::gemm::GemmShape<${ishape}>;
   static constexpr int kNumStages = ${stages};
 
-  using SwizzleThreadBlock =
-      typename SwizzleWrapper<SwizzleFactor, Batched>::Type;
   static constexpr int kId = Id;
 };
 """
 
 fp32_config_template = """
-template <int SwizzleFactor, bool Batched>
-struct GemmTuningConfigs<float, SwizzleFactor, Batched, ${config_id}> {
+template <>
+struct GemmTuningConfigs<float, ${config_id}> {
   using TShape = cutlass::gemm::GemmShape<${tshape}>;
   using WShape = cutlass::gemm::GemmShape<${wshape}>;
   using IShape = cutlass::gemm::GemmShape<${ishape}>;
   static constexpr int kNumStages = ${stages};
 
-  using SwizzleThreadBlock =
-      typename SwizzleWrapper<SwizzleFactor, Batched>::Type;
   static constexpr int kId = ${config_id};
 };
 """

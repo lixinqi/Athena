@@ -79,8 +79,7 @@ template <typename ElementT,
           bool TransposeA = false,
           bool TransposeB = false,
           int ConfigId = DefaultConfig::kConfigId,
-          int SwizzleFactor = DefaultConfig::kSwizzleFactor,
-          bool Batched = DefaultConfig::kBatched>
+          SwizzleType ST = DefaultConfig::kSwizzleType>
 void CutlassMatmul(const GemmEpilogueParams& params) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -107,12 +106,12 @@ void CutlassMatmul(const GemmEpilogueParams& params) {
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::TShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::WShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::IShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
-      GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
+      typename ThreadBlockSwizzle<ST>::Type,
+      GemmTuningConfigs<ElementT, ConfigId>::kNumStages,
       128 / cutlass::sizeof_bits<ElementInputA>::value, // AlignA
       128 / cutlass::sizeof_bits<ElementInputB>::value, // AlignB
       typename GemmOperation<ElementT>::Type            // Operation performed by GEMM
@@ -173,8 +172,7 @@ template <typename ElementT,
           int AlignA = 128 / cutlass::sizeof_bits<ElementT>::value,
           int AlignB = 128 / cutlass::sizeof_bits<ElementT>::value,
           int ConfigId = DefaultConfig::kConfigId,
-          int SwizzleFactor = DefaultConfig::kSwizzleFactor,
-          bool Batched = DefaultConfig::kBatched>
+          SwizzleType ST = DefaultConfig::kSwizzleType>
 void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename UnaryFunctor<ElementComputeT>::Arguments& unary_args) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -205,12 +203,12 @@ void CutlassMatmulAddUnary(const GemmEpilogueParams& params, const typename Unar
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::TShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::WShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::IShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
-      GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
+      typename ThreadBlockSwizzle<ST>::Type,
+      GemmTuningConfigs<ElementT, ConfigId>::kNumStages,
       AlignA,
       AlignB,
       typename GemmOperation<ElementT>::Type
@@ -271,8 +269,7 @@ template <typename ElementT,
           int AlignA = 128 / cutlass::sizeof_bits<ElementT>::value,
           int AlignB = 128 / cutlass::sizeof_bits<ElementT>::value,
           int ConfigId = DefaultConfig::kConfigId,
-          int SwizzleFactor = DefaultConfig::kSwizzleFactor,
-          bool Batched = DefaultConfig::kBatched>
+          SwizzleType ST = DefaultConfig::kSwizzleType>
 void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename VariadicFunctor<ElementComputeT>::Arguments& variadic_args) {
   using ElementAccumulator = typename CutlassDataType<ElementComputeT>::Type; // <- data type of accumulator
   using ElementComputeEpilogue = ElementAccumulator;              // <- data type of epilogue operations
@@ -302,12 +299,12 @@ void CutlassMatmulAddVariadic(const GemmEpilogueParams& params, const typename V
       ElementAccumulator,
       cutlass::arch::OpClassTensorOp,
       cutlass::arch::Sm80,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::TShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::WShape,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::IShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::TShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::WShape,
+      typename GemmTuningConfigs<ElementT, ConfigId>::IShape,
       EpilogueOutputOp,
-      typename GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::SwizzleThreadBlock,
-      GemmTuningConfigs<ElementT, SwizzleFactor, Batched, ConfigId>::kNumStages,
+      typename ThreadBlockSwizzle<ST>::Type,
+      GemmTuningConfigs<ElementT, ConfigId>::kNumStages,
       AlignA,
       AlignB,
       typename GemmOperation<ElementT>::Type
