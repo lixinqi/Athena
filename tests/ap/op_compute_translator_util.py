@@ -1,4 +1,5 @@
 import code_gen_value_util
+import axpr_dtype_to_nv_dtype_str
 
 class ApOpLoadFromRegisterCodeGen:
   def __init__(self,
@@ -261,7 +262,8 @@ class PdOpReluCodeGen:
 
   def __call__(self, inputs, mut_kernel_arg_id_registry, mut_lir_code_gen_ctx):
     out = self.get_out_cg_val(0)
-    mut_lir_code_gen_ctx.let(out, f"({inputs[0].var_name} > 0 ? {inputs[0].var_name} : 0) ")
+    nv_dtype_str = axpr_dtype_to_nv_dtype_str.axpr_dtype_to_nv_dtype_str()[inputs[0].get_dtype()]
+    mut_lir_code_gen_ctx.let(out, f"({inputs[0].var_name} > ({nv_dtype_str})0 ? {inputs[0].var_name} : ({nv_dtype_str})0) ")
     return [out]
 
   def get_out_cg_val(self, i):

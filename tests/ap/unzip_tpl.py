@@ -248,11 +248,11 @@ extern "C" {
 
 void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
   using ElementT = ${output_dtype};
-  using ElementComputeT = float;
+  using ElementComputeT = ${output_dtype};
 
   cudaStream_t* cuda_stream_ptr = reinterpret_cast<cudaStream_t*>(stream_ptr);
   std::cout << "start tokens_unzip_stable_kernel" << std::endl;
-  ap::tokens_unzip_stable<ElementT, ElementT, ap::MoeUnzipEpilogueFunctor>(*cuda_stream_ptr, ${input_x}, ${xscale}, ${expert_routemap_topk}, ${expert_prob_topk}, 384, 8, 4, ${output}, ${zipped_expertwise_rowmap}, ${token_prob_unzipped}, ${xscale_unzipped}, ${global_expertwise_block_cumsum}, ${rows}, ${output_rows}, ${cols});
+  ap::tokens_unzip_stable<ElementT, ElementComputeT, ap::MoeUnzipEpilogueFunctor>(*cuda_stream_ptr, ${input_x}, ${xscale}, ${expert_routemap_topk}, ${expert_prob_topk}, 1024, 8, 4, ${output}, ${zipped_expertwise_rowmap}, ${token_prob_unzipped}, ${xscale_unzipped}, ${global_expertwise_block_cumsum}, ${rows}, ${output_rows}, ${cols});
    
 }
 }

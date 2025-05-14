@@ -24,6 +24,7 @@ FILENAMES_ARRAY=(
     "test_matmul_epilogue"
     "unzip_tpl"
     "moe_unzip_ptn"
+    "axpr_dtype_to_nv_dtype_str"
 )
 for filename in "${FILENAMES_ARRAY[@]}"
 do

@@ -34,7 +34,42 @@ class MoeUnzipBinaryFusion(abstract_drr.DrrPass):
     o.fustion_op([t.input_x, t.xscale, t.expert_routemap_topk, t.expert_prob_topk, t.max_tokens_per_expert], [t.output, t.zipped_expertwise_rowmap, t.token_prob_unzipped, t.xscale_unzipped, t.global_expertwise_block_cumsum])
 
   def constraint(self, o, t):
-    return True
+    program = ir_tools.copy_fused_ops_to_program(o.trivial_op, tensor_match_ctx=t)
+    print("before-umprime: ", program)
+    # umprime passes
+    pass_manager = ir_tools.create_pass_manager()
+    pass_manager.add_pass(ir_tools.create_access_topo_drr_pass("umprime"))
+    pass_manager.add_pass(ir_tools.create_dce_pass())
+    pass_manager.run(program)
+    print("before-access_topo_pass", program)
+    init_pass_manager = ir_tools.create_pass_manager()
+    init_down_spider = topo_drr_pass.InitDownSpiderAccessTopoPass("x_unzipped")
+    init_pass_manager.add_pass(
+        ir_tools.create_access_topo_drr_one_step_pass(init_down_spider)
+    )
+    init_fake_data_for_yield_input = topo_drr_pass.FakeDataForYieldAccessTopoPass(
+      ["output"]
+    )
+    init_pass_manager.add_pass(
+        ir_tools.create_access_topo_drr_one_step_pass(init_fake_data_for_yield_input)
+    )
+    init_pass_manager.run(program)
+    print("after-init-access_topo_pass", program)
+    pass_manager = ir_tools.create_pass_manager()
+    pass_manager.add_pass(ir_tools.create_access_topo_drr_pass("default"))
+    pass_manager.add_pass(ir_tools.create_dce_pass())
+    pass_manager.run(program)
+    print("after-apply-access_topo_pass", program)
+    pass_manager = ir_tools.create_pass_manager()
+    remove_output_pass = matmul_epilogue_pass.RemoveDataOpPairPass(
+      src_data_op_name="x_unzipped",
+      dst_data_op_name="output"
+    )
+    pass_manager.add_pass(ir_tools.create_access_topo_drr_one_step_pass(remove_output_pass))
+    pass_manager.add_pass(ir_tools.create_dce_pass())
+    pass_manager.run(program)
+    print("after-remove-input-output-access_topo_pass", program)
+    return program.empty()
 
   def _insert_load_from_global(self, program, input_names):
     init_pass_manager = ir_tools.create_pass_manager()
