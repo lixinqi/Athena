@@ -7,7 +7,7 @@
 namespace ap {
 
 struct MatmulAddBinaryRunner {
-  template <int TuningConfigId>
+  template <int TuningConfigId, SwizzleType ST>
   static void Apply(const GemmEpilogueParams &params) {
     using ElementT = KernelUtils::Type;
     using ElementComputeT = float;
@@ -35,8 +35,8 @@ struct MatmulAddBinaryRunner {
     constexpr int AlignA = 128 / cutlass::sizeof_bits<ElementT>::value;
     constexpr int AlignB = 128 / cutlass::sizeof_bits<ElementT>::value;
     CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
-                             AlignA, AlignB, TuningConfigId>(params,
-                                                             variadic_args);
+                             AlignA, AlignB, TuningConfigId, ST>(params,
+                                                                 variadic_args);
   }
 };
 
@@ -57,7 +57,7 @@ void MatmulAddBinaryKernel(
 
   static int selected_config_id = -1;
   selected_config_id =
-      RunWithAutotune<KernelUtils::Type, MatmulAddBinaryRunner>(
+      RunWithAutotune<KernelUtils::Type, MatmulAddBinaryRunner, true>(
           *stream, selected_config_id, params);
 }
 

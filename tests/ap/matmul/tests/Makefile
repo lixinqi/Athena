@@ -12,7 +12,7 @@ USE_HALF  := 1
 LIB_NAME  := matmul_kernel
 LIB       := ${BUILD_DIR}/lib${LIB_NAME}.so
 TARGET    := ${BUILD_DIR}/test_main
-TARGET_OBJ:= ${BUILD_DIR}/test_main_matmul_unary.o
+TARGET_OBJ:= ${BUILD_DIR}/test_main_matmul_binary.o
 #TARGET_OBJ:= ${BUILD_DIR}/test_main_matmul_dlopen.o
 
 # COMPILER OPTIONS
@@ -28,8 +28,8 @@ NVCCFLAGS += -DAP_USE_FLOAT16=${USE_HALF} -DAP_ENABLE_DEBUG=${DEBUG} -DAP_ENABLE
 LDFLAGS   := -L./build -l${LIB_NAME} -lcuda -lcudart
 
 # SRCS = native_kernel.cu matmul_unary_kernel.cu matmul_binary_kernel.cu
-#LIB_SRCS  := $(wildcard ${TESTS_DIR}/*.cu)
-LIB_SRCS  := ${TESTS_DIR}/matmul_unary_kernel.cu ${TESTS_DIR}/test_util.cu
+LIB_SRCS  := $(wildcard ${TESTS_DIR}/*.cu)
+#LIB_SRCS  := ${TESTS_DIR}/matmul_unary_kernel.cu ${TESTS_DIR}/test_util.cu
 LIB_OBJS  := $(patsubst ${TESTS_DIR}/%.cu, ${BUILD_DIR}/%.o, ${LIB_SRCS})
 
 TEST_SRCS := $(wildcard ${TESTS_DIR}/test_*.cc)
