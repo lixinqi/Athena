@@ -17,7 +17,9 @@ import umprime
 @abstract_drr.register_drr_pass("matmul_binary_fusion", nice=0)
 class MatmulBinaryFusion(abstract_drr.DrrPass):
   def source_pattern(self, o, t):
-    o.matmul_op = o.ap_native_op("pd_op.matmul")
+    #o.matmul_op = o.ap_native_op("pd_op.matmul")
+    o.matmul_op = o.ap_native_op("ap_op.facade")
+    o.matmul_op.custom_op_name = pir.a_str("ap_custom_op.facade_matmul")
     o.matmul_op(
         [t.input0, t.input1],
         [t.mm_out]
@@ -128,6 +130,7 @@ class MatmulBinaryFusion(abstract_drr.DrrPass):
           self, compute_program, anchor_data_op_name, input_names, output_names):
     full_index_program = compute_program.clone()
     self._apply_topo_access_passes(full_index_program, anchor_data_op_name)
+    print("full_index_program:", full_index_program)
     def MatchAndCopyInputIndex(dst_input_name):
         pass_manager = ir_tools.create_pass_manager()
         removed_programs = MutableList()
