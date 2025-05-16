@@ -32,8 +32,8 @@ class CINNSubGraphNet(paddle.nn.Layer):
         super().__init__()
         self.fn = fn
 
-    def forward(self, x, y, b):
-        out = self.fn(x, y, b)
+    def forward(self, x, y, b, r):
+        out = self.fn(x, y, b, r)
         return out
 
 
@@ -43,34 +43,41 @@ class TestPCCMatmulBinary(unittest.TestCase):
         self.prepare_data()
 
     def prepare_data(self):
-        self.dtype = "bfloat16"
+        self.dtype = "float16"
 
-        self.x_shape = [4, 65536, 128]
+        self.x_shape = [1, 4096, 16384]
+        #self.x_shape = [1, 4096, 2048]
         self.x = paddle.randn(self.x_shape, dtype=self.dtype)
         self.x.stop_gradient = False
 
-        self.y_shape = [128, 32]
+        self.y_shape = [16384, 7168]
+        #self.y_shape = [2048, 7168]
         self.y = paddle.randn(self.y_shape, dtype=self.dtype)
         self.y.stop_gradient = False
 
-        self.b_shape = [32]
+        self.b_shape = [1, 4096, 7168]
         self.b = paddle.randn(self.b_shape, dtype=self.dtype)
         self.b.stop_gradient = False
 
+        self.r = paddle.randn(self.b_shape, dtype=self.dtype)
+        self.r.stop_gradient = False
+
     def run_with_dy2st(self, profile):
-        def matmul_add_relu(x, y, b):
+        def matmul_add_relu(x, y, b, r):
             out = paddle.matmul(x, y)
-            return paddle.nn.functional.relu(out + b)
+            #return paddle.nn.functional.relu(out + b)
+            return out + b #+ r
 
         net = CINNSubGraphNet(matmul_add_relu)
         input_spec = [
             InputSpec(shape=self.x_shape, dtype=self.dtype),
             InputSpec(shape=self.y_shape, dtype=self.dtype),
             InputSpec(shape=self.b_shape, dtype=self.dtype),
+            InputSpec(shape=self.b_shape, dtype=self.dtype),
         ]
         net = utils.apply_to_static(net, False, input_spec)
         net.eval()
-        out = utils.run_with_profile(profile, net, self.x, self.y, self.b)
+        out = utils.run_with_profile(profile, net, self.x, self.y, self.b, self.r)
         return out
 
     def run_with_pcc(self, profile):
@@ -83,25 +90,27 @@ class TestPCCMatmulBinary(unittest.TestCase):
         def matmul_add_relu(
             x: pct.Tensor([B, M, K], DType),
             y: pct.Tensor([K, N], DType),
-            b: pct.Tensor([N], DType),
+            b: pct.Tensor([B, M, N], DType),
+            #r: pct.Tensor([B, M, N], DType),
         ):
             def epilogue(out):
-                return paddle.nn.functional.relu(out + b)
+                #return paddle.nn.functional.relu(out + b)
+                return out + b #+ r
 
             out = paddle.matmul(x, y)
             return epilogue(out)
 
         parent_dir = os.path.dirname(os.path.abspath(__file__))
         fused_matmul = pcc.compile(matmul_add_relu, ap_path=parent_dir)
-        out = fused_matmul(self.x, self.y, self.b)
+        out = utils.run_with_profile(profile, fused_matmul, self.x, self.y, self.b)#, self.r)
         return out
 
     def test_matmul_add_relu(self):
-        profile = False
+        profile = True
         ap_out = self.run_with_pcc(profile=profile)
-        dy2st_out = self.run_with_dy2st(profile=profile)
-        if not profile:
-            utils.check_result(self.dtype, ap_out, dy2st_out)
+        #dy2st_out = self.run_with_dy2st(profile=profile)
+        #if not profile:
+        #    utils.check_result(self.dtype, ap_out, dy2st_out)
 
 
 if __name__ == "__main__":

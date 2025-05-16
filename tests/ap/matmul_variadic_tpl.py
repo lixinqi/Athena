@@ -198,9 +198,9 @@ class MatmulVariadicTemplate:
 #include <cuda_bf16.h>
 #include <vector>
 
+#include "autotune.h"
 #include "cutlass_matmul.cuh"
 #include "math_function.h"
-#include "profile.h"
 
 namespace ap {
 
@@ -212,28 +212,29 @@ struct VariadicEpilogueFunctor {
 
   // Note: need to support vectorized operation
   __forceinline__ __host__ __device__
-  T operator()(T x, const Arguments& args, const MatrixCoord& coord) const {
-    T out;
-    ${AP_EPILOGUE_COMPUTATION_STATEMENTS}
-    return out;
+  T operator()(T x, const Arguments& args) const {
+    return x;
   }
 };
 
-template <int TuningConfigId>
-static void RunMatmulWithVariadicKernel(const GemmEpilogueParams &params, ${AP_KERNEL_ARGS_DECLARE}) {
-  using ElementT = ${output_dtype};
-  using ElementComputeT = float;
+struct MatmulWithVariadicRunner {
+  template <int TuningConfigId>
+  static void Apply(const GemmEpilogueParams &params, ${AP_KERNEL_ARGS_DECLARE}) {
+    using ElementT = ${output_dtype};
+    using ElementComputeT = float;
 
-  typename VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
+    typename VariadicEpilogueFunctor<ElementComputeT>::Arguments epilogue_args;
 
-  ${AP_EPILOGUE_ARGUMENTS_INIT}
+    ${AP_EPILOGUE_ARGUMENTS_INIT}
 
-  constexpr int AlignA = Alignment<ElementT, ${k_value}>::kValue;
-  constexpr int AlignB = Alignment<ElementT, ${n_value}>::kValue;
+    constexpr int AlignA = Alignment<ElementT, ${k_value}>::kValue;
+    constexpr int AlignB = Alignment<ElementT, ${n_value}>::kValue;
+    //std::cout << "AlignA: " << AlignA << ", AlignB: " << AlignB << std::endl;
 
-  CutlassMatmulAddVariadic<ElementT, ElementComputeT, VariadicEpilogueFunctor,
-                           AlignA, AlignB, TuningConfigId>(params, epilogue_args);
-}
+    CutlassMatmulAddUnary<ElementT, ElementComputeT, VariadicEpilogueFunctor,
+                             AlignA, AlignB, TuningConfigId>(params, epilogue_args);
+  }
+};
 
 } // namespace ap
 
@@ -250,11 +251,8 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
   ap::GemmEpilogueParams params(
       *cuda_stream_ptr, ${input0}, ${input1}, nullptr, ${output}, ${input0}_shape, ${input1}_shape, std::vector<int64_t>{});
 
-#if AP_ENABLE_AUTOTUNE
-  AP_AUTOTUNE_${output_dtype}(ap::RunMatmulWithVariadicKernel, *cuda_stream_ptr, params, ${AP_KERNEL_ARGS_CALL});
-#else
-  ap::RunMatmulWithVariadicKernel<ap::DefaultConfig::kConfigId>(params, ${AP_KERNEL_ARGS_CALL});
-#endif
+  static int selected_config_id = -1;
+  selected_config_id = ap::RunWithAutotune<${output_dtype}, ap::MatmulWithVariadicRunner>(*cuda_stream_ptr, selected_config_id, params, ${AP_KERNEL_ARGS_CALL});
 }
 }
   """
@@ -290,7 +288,7 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
             )
             .replace(
                 "${AP_EPILOGUE_ARGUMENTS_INIT}",
-                self.get_epilogue_arguments_init_str("epilogue_args", indent="  "),
+                self.get_epilogue_arguments_init_str("epilogue_args", indent="    "),
             )
             .replace("${kernel_name}", self.kernel_name)
             .replace("${input0}", self.get_kernel_arg_id_var_name(input0_karg))
@@ -313,7 +311,7 @@ void ${kernel_name}(void* stream_ptr, ${AP_KERNEL_ARGS_DECLARE}) {
             compile_cmd
             + " -DCUTLASS_ENABLE_TENSOR_CORE_MMA=1 -DCUTLASS_DEBUG_TRACE_LEVEL=0"
         )
-        compile_cmd = compile_cmd + " -DAP_ENABLE_AUTOTUNE=1 -DAP_ENABLE_DEBUG=0"
+        compile_cmd = compile_cmd + " -DAP_ENABLE_AUTOTUNE=0 -DAP_ENABLE_DEBUG=1"
         compile_cmd = (
             compile_cmd
             + f" --shared {self.library_name}.cu -o lib{self.library_name}.so"

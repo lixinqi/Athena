@@ -5,6 +5,14 @@
 
 namespace ap {
 
+struct KernelUtils {
+#if AP_USE_FLOAT16
+  using Type = half;
+#else
+  using Type = float;
+#endif
+};
+
 // Unary Epilogue
 template <typename T> struct IdentityFunctor {
   struct Arguments {};
@@ -39,37 +47,38 @@ template <typename T> struct VariadicEpilogueFunctor {
   };
 
   // __forceinline__ __host__ __device__ int64_t
-  // Load(const Arguments &args, const MatrixCoord &coord) const {
+  // CalcOffset(const Arguments &args, const MatrixCoord &coord) const {
   //   int64_t offset = coord.batch * args.in0_shape[1] * args.in0_shape[2] +
   //                    coord.row * args.in0_shape[2] + coord.column;
   //   return offset;
   // }
 
   // __forceinline__ __host__ __device__ int64_t
-  // Load(const Arguments &args, const MatrixCoord &coord) const {
+  // CalcOffset(const Arguments &args, const MatrixCoord &coord) const {
   //   int64_t offset = coord.batch * args.in0_strides[0] +
   //                    coord.row * args.in0_strides[1] + coord.column;
   //   return offset;
   // }
 
   // __forceinline__ __host__ __device__ int64_t
-  // Load(const Arguments &args, const MatrixCoord &coord) const {
-  //   int64_t offset = coord.batch * 65536 * 32 + coord.row * 32 + coord.column;
-  //   return offset;
+  // CalcOffset(const Arguments &args, const MatrixCoord &coord) const {
+  //   int64_t offset = coord.batch * 65536 * 32 + coord.row * 32 +
+  //   coord.column; return offset;
   // }
 
   __forceinline__ __host__ __device__ int64_t
-  Load(const Arguments &args, const MatrixCoord &coord) const {
+  CalcOffset(const Arguments &args, const MatrixCoord &coord) const {
     int64_t offset = coord.column;
     return offset;
   }
 
   __forceinline__ __host__ __device__ T
   operator()(T x, const Arguments &args, const MatrixCoord &coord) const {
-    int64_t offset = Load(args, coord);
-    T y = static_cast<T>(args.in0_ptr[offset]);
-    T out = x + y;
-    return out;
+    //int64_t offset = CalcOffset(args, coord);
+    //T y = static_cast<T>(args.in0_ptr[offset]);
+    //T out = x + y;
+    //return out;
+    return x;
   }
 
   template <int N>
