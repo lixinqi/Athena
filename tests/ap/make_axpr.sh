@@ -20,8 +20,12 @@ FILENAMES_ARRAY=(
     "ap_tpl_codegen"
     "matmul_variadic_tpl"
     "matmul_epilogue_pass"
+    "tuple_identity_util"
+    "facade_utils"
     "test_matmul_binary"
     "test_matmul_epilogue"
+    "quant_horizontal_ptn"
+    "quant_horizontal_tpl"
 )
 for filename in "${FILENAMES_ARRAY[@]}"
 do
